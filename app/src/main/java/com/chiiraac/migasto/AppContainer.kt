@@ -35,7 +35,8 @@ class AppContainer(context: Context) {
 
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    val isCloud: Boolean = FirebaseApp.getApps(appContext).isNotEmpty()
+    val isCloud: Boolean = System.getProperty("migasto.forceLocal") != "true" &&
+        FirebaseApp.getApps(appContext).isNotEmpty()
 
     val preferences = UserPreferences(appContext.settingsDataStore)
 

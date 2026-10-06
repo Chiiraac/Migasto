@@ -57,7 +57,10 @@ jobs:
           MIGASTO_KEYSTORE_PASSWORD: ${{ secrets.MIGASTO_KEYSTORE_PASSWORD }}
           MIGASTO_KEY_ALIAS: ${{ secrets.MIGASTO_KEY_ALIAS }}
           MIGASTO_KEY_PASSWORD: ${{ secrets.MIGASTO_KEY_PASSWORD }}
-        run: ./gradlew :app:assembleRelease :app:bundleRelease
+        run: |
+          ./gradlew :app:assembleRelease
+          # Para Google Play se puede ocultar el apartado de Bizum con la variable MIGASTO_BIZUM_EN_PLAY=false
+          ./gradlew :app:bundleRelease -Pmigasto.bizum=${{ vars.MIGASTO_BIZUM_EN_PLAY || 'true' }}
 
 
       - name: Publicar APK

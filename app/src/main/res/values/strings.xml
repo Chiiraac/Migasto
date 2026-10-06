@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
     <string name="app_name" translatable="false">MiGasto</string>
+    <string name="bizum_number" translatable="false">643441314</string>
+    <string name="bizum_number_display" translatable="false">643 441 314</string>
     <string name="privacy_policy_url" translatable="false">https://chiiraac.github.io/Migasto/privacy-policy.html</string>
 
     <!-- Acciones comunes -->
@@ -263,4 +265,12 @@
     <string name="error_unknown">Ha ocurrido un error. Inténtalo de nuevo.</string>
     <string name="error_amount_invalid">Introduce una cantidad válida.</string>
     <string name="error_camera_unavailable">No se ha encontrado ninguna app de cámara.</string>
+
+    <!-- Invítame a un café -->
+    <string name="coffee_title">Invítame a un café</string>
+    <string name="coffee_body">¿Te gusta MiGasto? Si quieres apoyar su desarrollo, puedes invitarme a un café por Bizum. ¡Muchas gracias! ☕</string>
+    <string name="coffee_bizum">Bizum</string>
+    <string name="coffee_copy">Copiar número</string>
+    <string name="coffee_copied">Número de Bizum copiado</string>
+    <string name="coffee_how">Abre la app de tu banco → Bizum → Enviar dinero y pega el número.</string>
 </resources>

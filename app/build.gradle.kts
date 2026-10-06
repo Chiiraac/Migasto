@@ -34,6 +34,15 @@ android {
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Apartado "Invítame a un café" (Bizum). Google Play puede rechazar enlaces de donación
+        // que no usen su sistema de pagos: para la versión de Play se puede compilar con
+        // ./gradlew bundleRelease -Pmigasto.bizum=false
+        buildConfigField(
+            "boolean",
+            "SHOW_BIZUM",
+            (project.findProperty("migasto.bizum")?.toString() ?: "true").toBoolean().toString(),
+        )
     }
 
     signingConfigs {
@@ -79,6 +88,8 @@ android {
             all {
                 it.systemProperty("robolectric.pixelCopyRenderMode", "hardware")
                 it.systemProperty("roborazzi.test.record", "true")
+                // Los tests de la app completa usan siempre el modo local, aunque exista google-services.json
+                it.systemProperty("migasto.forceLocal", "true")
                 // Espejo de Maven Central para descargar los android-all de Robolectric
                 it.systemProperty(
                     "robolectric.dependency.repo.url",

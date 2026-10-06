@@ -151,6 +151,10 @@ class ScreenshotTest {
     fun settings() = shot("07_settings_dark") { MainScreen(cloudState, MainActions(), initialTab = MainTab.SETTINGS) }
 
     @Test
+    @Config(qualifiers = "es-rES-w411dp-h1800dp-xxhdpi")
+    fun settingsFull() = shot("07b_settings_full") { MainScreen(cloudState, MainActions(), initialTab = MainTab.SETTINGS) }
+
+    @Test
     fun settingsLocal() = shot("08_settings_local_light", dark = false) {
         MainScreen(cloudState.copy(isCloud = false, themeMode = ThemeMode.LIGHT), MainActions(), initialTab = MainTab.SETTINGS)
     }

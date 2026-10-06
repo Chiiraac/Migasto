@@ -17,7 +17,7 @@
 - **Calendario**: mes a mes, con puntos verdes/rojos en los días con ingresos/gastos y el detalle de cada día.
 - **Gráficas**: por mes, año o todo; barras de evolución diaria/mensual, gastos por categoría (anillo), por cuenta y por miembro del grupo, y tasa de ahorro.
 - **Grupos**: varios grupos (Casa, Viaje, Pareja…). En modo nube se comparten con un **código de invitación** de 6 letras.
-- **Ajustes**: perfil, tema **Sistema / Claro / Oscuro**, **exportar a CSV** (Excel / Google Sheets), política de privacidad, cerrar sesión y **eliminar la cuenta** (obligatorio en Google Play).
+- **Ajustes**: perfil, tema **Sistema / Claro / Oscuro**, **exportar a CSV** (Excel / Google Sheets), **«Invítame a un café» por Bizum** (se puede ocultar en la versión de Play con `-Pmigasto.bizum=false`), política de privacidad, cerrar sesión y **eliminar la cuenta** (obligatorio en Google Play).
 - Español e inglés, modo oscuro y claro, iconos temáticos de Android 13+, pantallas grandes y copia de seguridad de Android en modo local.
 
 ### Mejoras respecto al diseño original

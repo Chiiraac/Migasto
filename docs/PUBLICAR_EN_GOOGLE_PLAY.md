@@ -154,6 +154,18 @@ MiGasto es la forma más sencilla de llevar las cuentas de casa, solo o en compa
 4. Tras **14 días** con los 12 testers activos: **Panel → Solicitar acceso a producción**, responde el breve cuestionario y, cuando lo aprueben, **Producción → Crear versión** con el mismo AAB (o uno nuevo) → **Enviar a revisión**.
 5. La primera revisión suele tardar de unas horas a 7 días.
 
+## 7 bis. «Invítame a un café» (Bizum) y Google Play
+
+La app incluye en *Ajustes* un apartado para invitarte a un café por Bizum. **Atención:** la política de pagos de Google Play exige usar su sistema de cobro para pagos dentro de la app y Google ha retirado apps por enlazar a donaciones externas (fuera de EE. UU. la excepción solo cubre donativos a entidades benéficas). Para no arriesgar la publicación:
+
+- **APK que instalas tú o compartes directamente:** puede llevar el apartado de Bizum sin problema.
+- **AAB para Google Play (recomendado):** compílalo sin el apartado:
+  ```bash
+  ./gradlew :app:bundleRelease -Pmigasto.bizum=false
+  ```
+  En GitHub Actions basta con crear la variable del repositorio `MIGASTO_BIZUM_EN_PLAY` con valor `false` (*Settings → Secrets and variables → Actions → Variables*).
+- Si quieres donaciones dentro de la versión de Play, la forma permitida es un producto de compra integrada («Café», p. ej. 1,99 €) con Google Play Billing.
+
 ## 8. Publicar actualizaciones
 
 1. En `app/build.gradle.kts` sube `versionCode` (2, 3, 4…) y `versionName` (`1.0.1`, `1.1.0`…).

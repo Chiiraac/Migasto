@@ -16,7 +16,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.CloudDone
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.LocalCafe
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.Policy
 import androidx.compose.material.icons.rounded.Smartphone
@@ -58,6 +60,21 @@ import com.chiiraac.migasto.ui.components.SettingsRow
 import com.chiiraac.migasto.ui.components.label
 import com.chiiraac.migasto.ui.components.messageRes
 import com.chiiraac.migasto.ui.main.MainUiState
+import android.content.ClipData
+import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
@@ -138,6 +155,9 @@ fun SettingsScreen(
                     onClick = onExportCsv,
                 )
             }
+        }
+        if (BuildConfig.SHOW_BIZUM) {
+            item(key = "coffee") { CoffeeCard() }
         }
         item(key = "info") {
             SectionCard(title = stringResource(R.string.settings_app_info)) {
@@ -337,4 +357,75 @@ private fun DeleteAccountDialog(
             TextButton(onClick = onDismiss, enabled = !working) { Text(stringResource(R.string.action_cancel)) }
         },
     )
+}
+
+/** Apartado "Invítame a un café" con el número de Bizum para copiar. */
+@Composable
+private fun CoffeeCard() {
+    val clipboard = LocalClipboard.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val number = stringResource(R.string.bizum_number)
+    val copied = stringResource(R.string.coffee_copied)
+    val coffee = Color(0xFFB45309)
+    SectionCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(coffee.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Rounded.LocalCafe, contentDescription = null, tint = Color(0xFFF59E0B))
+            }
+            Spacer(Modifier.width(14.dp))
+            Text(stringResource(R.string.coffee_title), style = MaterialTheme.typography.titleLarge)
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            stringResource(R.string.coffee_body),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(14.dp))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
+                .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.coffee_bizum),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    stringResource(R.string.bizum_number_display),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Button(
+                onClick = {
+                    scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Bizum", number))) }
+                    Toast.makeText(context, copied, Toast.LENGTH_SHORT).show()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B), contentColor = Color.Black),
+            ) {
+                Icon(Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.coffee_copy), maxLines = 1)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(R.string.coffee_how),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }

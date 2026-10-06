@@ -244,4 +244,11 @@
     <string name="error_unknown">Something went wrong. Please try again.</string>
     <string name="error_amount_invalid">Enter a valid amount.</string>
     <string name="error_camera_unavailable">No camera app was found.</string>
+
+    <string name="coffee_title">Buy me a coffee</string>
+    <string name="coffee_body">Enjoying MiGasto? If you\'d like to support its development, you can buy me a coffee via Bizum. Thank you! ☕</string>
+    <string name="coffee_bizum">Bizum</string>
+    <string name="coffee_copy">Copy number</string>
+    <string name="coffee_copied">Bizum number copied</string>
+    <string name="coffee_how">Open your bank app → Bizum → Send money and paste the number.</string>
 </resources>
