@@ -24,6 +24,8 @@ cloudshell download google-services.json
 ```
 Solo falta activar **Authentication → Correo electrónico/contraseña** desde la consola (paso 3).
 
+> **Si `firebase login` se complica**, no hace falta: pulsa `Ctrl+C`, registra la app con el formulario web (paso 2) y publica las reglas desde la consola (paso 5, opción A). En ese caso **no** ejecutes `firebase apps:create`, porque crearía una segunda app duplicada. Los comandos `gcloud` del principio sí funcionan sin login.
+
 ## 2. Registrar la app Android
 
 1. En la página del proyecto, pulsa el icono de **Android** para añadir una app.
