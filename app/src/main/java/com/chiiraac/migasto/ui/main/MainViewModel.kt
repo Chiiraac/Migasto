@@ -28,6 +28,7 @@ import com.chiiraac.migasto.ui.components.messageRes
 import com.chiiraac.migasto.util.PhotoProcessor
 import com.chiiraac.migasto.util.TempFiles
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -60,11 +61,21 @@ data class MainUiState(
     val savedEditorTokens: Set<Long> = emptySet(),
     /** Editores cuyo guardado sigue en curso (sobrevive a la recreación de la actividad). */
     val savingEditorTokens: Set<Long> = emptySet(),
+    /** Cierre de sesión en curso (vive en el ViewModel para sobrevivir a un giro de pantalla). */
+    val signOutState: SignOutState = SignOutState.IDLE,
 ) {
     /** Nombre a mostrar del autor de un movimiento (actualizado si cambió su nombre). */
     fun authorName(movement: Movement): String =
         selectedGroup?.memberName(movement.createdById)?.takeIf { it.isNotBlank() }
             ?: movement.createdByName
+}
+
+enum class SignOutState {
+    IDLE,
+    /** Enviando los cambios guardados sin conexión antes de cerrar la sesión. */
+    SYNCING,
+    /** No se pudieron enviar a tiempo: se pregunta si cerrar la sesión igualmente. */
+    PENDING_CHANGES,
 }
 
 /** Mensaje puntual para mostrar en un snackbar. */
@@ -130,10 +141,23 @@ class MainViewModel(
     private val savedEditorTokens = MutableStateFlow<Set<Long>>(emptySet())
     private val savingEditorTokens = MutableStateFlow<Set<Long>>(emptySet())
 
-    private data class EditorState(val theme: ThemeMode, val saved: Set<Long>, val saving: Set<Long>)
+    private val signOutState = MutableStateFlow(SignOutState.IDLE)
+    private var signOutJob: Job? = null
 
-    private val themeAndEditor = combine(preferences.themeMode, savedEditorTokens, savingEditorTokens) { theme, saved, saving ->
-        EditorState(theme, saved, saving)
+    private data class EditorState(
+        val theme: ThemeMode,
+        val saved: Set<Long>,
+        val saving: Set<Long>,
+        val signOut: SignOutState,
+    )
+
+    private val themeAndEditor = combine(
+        preferences.themeMode,
+        savedEditorTokens,
+        savingEditorTokens,
+        signOutState,
+    ) { theme, saved, saving, signOut ->
+        EditorState(theme, saved, saving, signOut)
     }
 
     val uiState: StateFlow<MainUiState> = combine(
@@ -154,6 +178,7 @@ class MainViewModel(
             themeMode = editor.theme,
             savedEditorTokens = editor.saved,
             savingEditorTokens = editor.saving,
+            signOutState = editor.signOut,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, MainUiState(isCloud = isCloud))
 
@@ -194,7 +219,15 @@ class MainViewModel(
                     post(R.string.group_joined, group.name)
                     onResult(null)
                 }
-                .onFailure { onResult(it) }
+                .onFailure { error ->
+                    // La conexión se cortó a mitad: la solicitud está en cola y se completará sola.
+                    if ((error as? AppError)?.reason == AppError.Reason.JOIN_QUEUED) {
+                        post(R.string.group_join_queued)
+                        onResult(null)
+                    } else {
+                        onResult(error)
+                    }
+                }
         }
     }
 
@@ -300,19 +333,31 @@ class MainViewModel(
 
     /**
      * Cierra la sesión. Antes espera a que lleguen al servidor los cambios guardados sin conexión:
-     * si no llegan a tiempo y no se pide [force], avisa con [onPendingChanges] y no cierra la sesión
-     * (lo que quede en cola solo se enviaría al volver a entrar con esta cuenta en este móvil).
+     * si no llegan a tiempo y no se pide [force], pasa a [SignOutState.PENDING_CHANGES] y no cierra
+     * la sesión (lo que quede en cola solo se enviaría al volver a entrar con esta cuenta en este móvil).
      */
-    fun signOut(force: Boolean = false, onPendingChanges: () -> Unit = {}) {
-        viewModelScope.launch {
-            if (isCloud && !force && !finance.flushPendingWrites(SIGN_OUT_FLUSH_MS)) {
-                onPendingChanges()
-                return@launch
+    fun signOut(force: Boolean = false) {
+        if (signOutJob?.isActive == true) return
+        signOutJob = viewModelScope.launch {
+            if (isCloud && !force) {
+                signOutState.value = SignOutState.SYNCING
+                if (!finance.flushPendingWrites(SIGN_OUT_FLUSH_MS)) {
+                    signOutState.value = SignOutState.PENDING_CHANGES
+                    return@launch
+                }
             }
             TempFiles.clearAll(application)
             if (isCloud) GoogleSignIn.clearSession(application)
             auth.signOut()
+            signOutState.value = SignOutState.IDLE
         }
+    }
+
+    /** "Cancelar" mientras se envían los cambios, o tras el aviso de cambios pendientes. */
+    fun cancelSignOut() {
+        signOutJob?.cancel()
+        signOutJob = null
+        signOutState.value = SignOutState.IDLE
     }
 
     /**

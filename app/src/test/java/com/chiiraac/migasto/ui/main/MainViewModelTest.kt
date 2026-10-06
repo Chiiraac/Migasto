@@ -62,7 +62,8 @@ class MainViewModelTest {
         override suspend fun sendPasswordReset(email: String) = Result.success(Unit)
         override suspend fun updateName(name: String) = Result.success(TestData.emil)
         override suspend fun reauthenticate(proof: Reauth) = Result.success(Unit)
-        override suspend fun signOut() = Unit
+        var signOuts = 0
+        override suspend fun signOut() { signOuts++ }
         override suspend fun deleteAccount() = Result.success(Unit)
     }
 
@@ -90,13 +91,41 @@ class MainViewModelTest {
         override suspend fun loadPhoto(movement: Movement): ByteArray? = null
         override suspend fun updateMemberProfile(user: UserProfile) = Result.success(Unit)
         override suspend fun purgeUser(user: UserProfile) = Result.success(Unit)
+        var flushResult = true
+        override suspend fun flushPendingWrites(timeoutMs: Long) = flushResult
     }
 
-    private fun viewModel(finance: FinanceRepository): MainViewModel {
+    private fun viewModel(finance: FinanceRepository, auth: FakeAuth = FakeAuth(TestData.emil)): MainViewModel {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val file = File(app.filesDir, "test-${System.nanoTime()}.preferences_pb")
         val prefs = UserPreferences(PreferenceDataStoreFactory.create(scope = scope.backgroundScope) { file })
-        return MainViewModel(app, FakeAuth(TestData.emil), finance, prefs, isCloud = true)
+        return MainViewModel(app, auth, finance, prefs, isCloud = true)
+    }
+
+    @Test
+    fun signOutWarnsAboutUnsyncedChangesAndCanBeCancelled() = scope.runTest {
+        val finance = FlakyFinance(TestData.movements).apply { flushResult = false }
+        val auth = FakeAuth(TestData.emil)
+        val vm = viewModel(finance, auth)
+        advanceUntilIdle()
+
+        vm.signOut()
+        advanceUntilIdle()
+        assertEquals(SignOutState.PENDING_CHANGES, vm.uiState.value.signOutState)
+        assertEquals(0, auth.signOuts)
+
+        vm.cancelSignOut()
+        advanceUntilIdle()
+        assertEquals(SignOutState.IDLE, vm.uiState.value.signOutState)
+
+        vm.signOut(force = true)
+        // Borrar los temporales va en otro hilo: se deja avanzar hasta que termine.
+        repeat(500) {
+            advanceUntilIdle()
+            if (auth.signOuts > 0) return@repeat
+            Thread.sleep(10)
+        }
+        assertEquals(1, auth.signOuts)
     }
 
     @Test

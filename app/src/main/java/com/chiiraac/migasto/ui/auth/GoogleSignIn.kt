@@ -16,6 +16,7 @@ import com.chiiraac.migasto.BuildConfig
 import com.chiiraac.migasto.data.AppError
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * "Continuar con Google" mediante Credential Manager. Devuelve el token de Google que luego
@@ -52,7 +53,10 @@ object GoogleSignIn {
     suspend fun clearSession(context: Context) {
         if (!isConfigured) return
         try {
-            CredentialManager.create(context).clearCredentialState(ClearCredentialStateRequest())
+            // Con límite de tiempo: cerrar sesión nunca debe quedarse esperando a Google Play Services.
+            withTimeoutOrNull(CLEAR_TIMEOUT_MS) {
+                CredentialManager.create(context).clearCredentialState(ClearCredentialStateRequest())
+            }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -85,5 +89,6 @@ object GoogleSignIn {
     }
 
     private const val TAG = "MiGasto"
+    private const val CLEAR_TIMEOUT_MS = 3_000L
     private val DEVELOPER_ERROR = Regex("""(^|\D)10: """)
 }

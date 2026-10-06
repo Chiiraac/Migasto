@@ -140,6 +140,10 @@
     <string name="delete_account_body">Your account will be deleted and you will leave all your groups. Groups where you are the only member will be deleted with all their transactions. This cannot be undone.</string>
     <string name="delete_account_password">Password to confirm</string>
     <string name="delete_account_google_hint">To confirm, choose your Google account in the next step.</string>
+    <string name="delete_account_use_google">Confirm with Google</string>
+    <string name="delete_account_use_password">Confirm with my password</string>
+    <string name="delete_account_google_failed">Couldn\'t confirm with Google on this phone. You can also ask us to delete your account from the web.</string>
+    <string name="delete_account_web">Request deletion on the web</string>
     <string name="delete_local_title">Delete all data?</string>
     <string name="delete_local_body">All your groups, transactions and photos on this device will be deleted. This cannot be undone.</string>
 
@@ -169,6 +173,7 @@
     <string name="group_code_copied">Code copied</string>
     <string name="group_share_text">Join my “%1$s” group on MiGasto to keep track of our expenses together! Invite code: %2$s</string>
     <string name="group_joined">You joined “%1$s”</string>
+    <string name="group_join_queued">Slow connection: you will join the group as soon as it is back, and it will appear in your list.</string>
     <string name="group_created">Group “%1$s” created</string>
     <string name="group_left">You left “%1$s”</string>
     <string name="group_deleted">Group “%1$s” deleted</string>
@@ -243,6 +248,7 @@
     <string name="error_permission">You don\'t have permission to do this.</string>
     <string name="error_invalid_email">The email is not valid.</string>
     <string name="error_wrong_credentials">Wrong email or password.</string>
+    <string name="error_wrong_credentials_google">Wrong email or password. If you ever signed in with Google, use “Continue with Google”.</string>
     <string name="error_email_in_use">An account with that email already exists.</string>
     <string name="error_weak_password">The password must be at least 6 characters long.</string>
     <string name="error_too_many">Too many attempts. Please wait a moment.</string>
@@ -253,7 +259,7 @@
     <string name="error_unknown">Something went wrong. Please try again.</string>
     <string name="error_cancelled">Cancelled.</string>
     <string name="error_google_failed">Couldn\'t sign in with Google. Please try again.</string>
-    <string name="error_google_no_account">There\'s no Google account on this phone. Add one in system settings or sign in with your email.</string>
+    <string name="error_google_no_account">Your Google account couldn\'t be used on this phone. Check that a Google account is added and Google Play services is up to date, or sign in with your email.</string>
     <string name="error_google_unavailable">Google sign-in isn\'t available on this phone. Sign in with your email and password.</string>
     <string name="error_google_not_configured">Google sign-in isn\'t available in this version of the app. Sign in with your email and password.</string>
     <string name="error_google_mismatch">Choose the same Google account you signed in with.</string>

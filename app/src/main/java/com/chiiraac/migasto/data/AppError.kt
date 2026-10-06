@@ -16,6 +16,8 @@ class AppError(val reason: Reason, cause: Throwable? = null) : Exception(reason.
         /** El acceso con email no está activado en el proyecto de Firebase. */
         AUTH_NOT_CONFIGURED,
         ACCOUNT_DISABLED,
+        /** La conexión se cortó al unirse a un grupo: la solicitud se completará al volver la conexión. */
+        JOIN_QUEUED,
         PHOTO_TOO_LARGE,
         /** El usuario cerró la ventana (p. ej. el selector de cuentas de Google): no se muestra nada. */
         CANCELLED,

@@ -44,6 +44,8 @@ class AuthViewModel(
     private val auth: AuthRepository,
     private val finance: FinanceRepository,
     private val defaultGroupName: String,
+    /** Hay botón de Google: al fallar la contraseña se sugiere probar con Google. */
+    private val googleAvailable: Boolean = false,
 ) : ViewModel() {
 
     private val state = MutableStateFlow(AuthUiState(groupName = defaultGroupName))
@@ -85,7 +87,17 @@ class AuthViewModel(
             if (result.isSuccess || auth.authState.value is AuthState.SignedIn) {
                 state.value = AuthUiState(groupName = defaultGroupName)
             } else {
-                state.update { it.copy(loading = false, error = result.exceptionOrNull()?.messageRes()) }
+                val error = result.exceptionOrNull()
+                // Una cuenta creada con Google no tiene contraseña: el error parece "contraseña incorrecta".
+                val message = if (
+                    !current.registering && googleAvailable &&
+                    (error as? AppError)?.reason == AppError.Reason.WRONG_CREDENTIALS
+                ) {
+                    R.string.error_wrong_credentials_google
+                } else {
+                    error?.messageRes()
+                }
+                state.update { it.copy(loading = false, error = message) }
             }
         }
     }
@@ -164,6 +176,7 @@ class AuthViewModel(
                     auth = container.authRepository,
                     finance = container.financeRepository,
                     defaultGroupName = application.getString(R.string.default_group_name),
+                    googleAvailable = container.isCloud && GoogleSignIn.isConfigured,
                 )
             }
         }

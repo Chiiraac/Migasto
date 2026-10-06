@@ -76,11 +76,17 @@ class FirebaseAuthRepository(
             ?: pendingNames.get(uid)
             ?: email?.substringBefore('@')
             ?: ""
-        return UserProfile(uid = uid, name = name, email = email, usesGoogle = usesGoogle())
+        return UserProfile(
+            uid = uid,
+            name = name,
+            email = email,
+            usesGoogle = hasProvider(GoogleAuthProvider.PROVIDER_ID),
+            hasPassword = hasProvider(EmailAuthProvider.PROVIDER_ID),
+        )
     }
 
-    private fun FirebaseUser.usesGoogle(): Boolean =
-        providerData.any { it.providerId == GoogleAuthProvider.PROVIDER_ID }
+    private fun FirebaseUser.hasProvider(providerId: String): Boolean =
+        providerData.any { it.providerId == providerId }
 
     /** Si al registrarse no se llegó a guardar el nombre, se vuelve a intentar (sin bloquear). */
     private fun retryPendingName(user: FirebaseUser) {
@@ -121,6 +127,10 @@ class FirebaseAuthRepository(
         val result = auth.createUserWithEmailAndPassword(email.trim(), password).await()
         val user = result.user ?: throw AppError(AppError.Reason.UNKNOWN)
         pendingNames.put(user.uid, trimmed)
+        // Email de verificación (sin esperar): con el email verificado, si un día entra con Google
+        // usando ese mismo Gmail, Firebase añade Google a la cuenta en vez de quitarle la contraseña.
+        auth.useAppLanguage()
+        user.sendEmailVerification().addOnFailureListener { Log.w(TAG, "Verification email not sent", it) }
         user.updateProfile(UserProfileChangeRequest.Builder().setDisplayName(trimmed).build()).await()
         pendingNames.remove(user.uid)
         publish(auth.currentUser)

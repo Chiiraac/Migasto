@@ -110,6 +110,7 @@ fun Throwable.messageRes(): Int {
         AppError.Reason.TOO_MANY_REQUESTS -> R.string.error_too_many
         AppError.Reason.AUTH_NOT_CONFIGURED -> R.string.error_auth_not_configured
         AppError.Reason.ACCOUNT_DISABLED -> R.string.error_account_disabled
+        AppError.Reason.JOIN_QUEUED -> R.string.group_join_queued
         AppError.Reason.PHOTO_TOO_LARGE -> R.string.error_photo_too_large
         AppError.Reason.CANCELLED -> R.string.error_cancelled
         AppError.Reason.GOOGLE_FAILED -> R.string.error_google_failed

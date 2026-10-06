@@ -168,7 +168,12 @@ class FirebaseEmulatorTest {
             repoB.joinGroup(bea, stale.inviteCode).getOrThrow()
             assertEquals(1, stale.members.size)
 
+            assertTrue(ana.hasPassword)
+            assertTrue(!ana.usesGoogle)
+
             // Ana sale con esa copia: el servidor sabe que queda Bea, así que el grupo no se borra
+            repoA.leaveGroup(ana, stale).getOrThrow()
+            // Pulsar "Salir" otra vez no da error de permisos
             repoA.leaveGroup(ana, stale).getOrThrow()
             val kept = repoB.observeGroups(bea).first { list -> list.any { it.members.size == 1 } }.single()
             assertEquals(stale.id, kept.id)
@@ -201,6 +206,7 @@ class FirebaseEmulatorTest {
             assertEquals("Marta Google", marta.name)
             assertEquals("marta$suffix@gmail.com", marta.email)
             assertTrue(marta.usesGoogle)
+            assertTrue(!marta.hasPassword)
 
             // Puede crear un grupo como cualquier otra cuenta
             val group = repo.createGroup(marta, "Piso", GroupIcon.HOME).getOrThrow()

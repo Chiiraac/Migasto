@@ -119,8 +119,9 @@ class MainActions(
     val loadPhoto: suspend (Movement) -> ByteArray? = { null },
     val setTheme: (ThemeMode) -> Unit = {},
     val updateName: (String) -> Unit = {},
-    /** (forzar, avisoSiQuedanCambiosSinEnviar) */
-    val signOut: (Boolean, () -> Unit) -> Unit = { _, _ -> },
+    /** Cerrar sesión (true = aunque queden cambios sin enviar). */
+    val signOut: (Boolean) -> Unit = {},
+    val cancelSignOut: () -> Unit = {},
     val deleteAccount: (Reauth?, (Throwable?) -> Unit) -> Unit = { _, _ -> },
     val exportCsv: () -> Unit = {},
 )
@@ -154,6 +155,7 @@ fun MainRoute(userId: String) {
             setTheme = viewModel::setThemeMode,
             updateName = viewModel::updateName,
             signOut = viewModel::signOut,
+            cancelSignOut = viewModel::cancelSignOut,
             deleteAccount = viewModel::deleteAccount,
             exportCsv = {
                 scope.launch {
@@ -306,6 +308,7 @@ fun MainScreen(
                         onThemeChange = actions.setTheme,
                         onExportCsv = actions.exportCsv,
                         onSignOut = actions.signOut,
+                        onCancelSignOut = actions.cancelSignOut,
                         onDeleteAccount = actions.deleteAccount,
                         contentPadding = contentPadding,
                     )

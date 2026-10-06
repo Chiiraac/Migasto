@@ -33,6 +33,12 @@ val googleWebClientId: String = providers.gradleProperty("migasto.googleWebClien
             oauthClients.firstOrNull { it["client_type"]?.toString() == "3" }?.get("client_id")?.toString()
         }
     ?: ""
+if (hasFirebaseConfig && googleWebClientId.isEmpty()) {
+    logger.warn(
+        "MiGasto: google-services.json no tiene ID de cliente web (client_type 3): " +
+            "el botón «Continuar con Google» no aparecerá. Descarga de nuevo el archivo desde Firebase.",
+    )
+}
 
 // Firma de release: keystore.properties en la raíz o variables de entorno (CI).
 val keystoreProperties = Properties().apply {

@@ -46,7 +46,7 @@ Solo falta activar **Authentication → Correo electrónico/contraseña** desde 
 2. ⚙️ **Configuración del proyecto → General → Tus apps → MiGasto → Agregar huella digital**. Añade la **SHA-1** (y si quieres la SHA-256) del certificado con el que se firma la app:
    - Clave de subida (el APK que instalas tú): `keytool -list -v -keystore release-output/migasto-upload.jks -alias migasto` (o mira `CLAVES-FIRMA.txt`).
    - Cuando publiques en Google Play, añade también la de **Play App Signing**: *Play Console → tu app → Prueba y lanzamiento → Configuración → Integridad de la app → Firma de apps* → «Huella digital del certificado SHA-1». No hace falta recompilar.
-3. **Descarga de nuevo `google-services.json`** y cópialo en `app/`. El nuevo incluye el «ID de cliente web» que necesita el botón **Continuar con Google**; sin él, el botón no aparece.
+3. **Descarga de nuevo `google-services.json`** y cópialo en `app/`. El nuevo incluye el «ID de cliente web» que necesita el botón **Continuar con Google**; sin él, el botón no aparece (la compilación avisa con un *warning*). Si usas GitHub Actions, **actualiza también el secreto `GOOGLE_SERVICES_JSON`** con el contenido del archivo nuevo.
 
 Si al pulsar el botón sale «El inicio de sesión con Google no está disponible en esta versión», falta la huella SHA-1 del certificado con el que está firmada esa copia de la app.
 

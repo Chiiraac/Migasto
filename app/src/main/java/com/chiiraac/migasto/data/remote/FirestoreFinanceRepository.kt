@@ -20,6 +20,7 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.SetOptions
@@ -112,14 +113,17 @@ class FirestoreFinanceRepository(
         val groupRef = groups.document(groupId)
 
         try {
-            // Con un límite de tiempo: sin conexión Firestore nunca falla la escritura, la deja en cola.
-            groupRef.update(
+            val update = groupRef.update(
                 mapOf(
                     F_MEMBER_IDS to FieldValue.arrayUnion(user.uid),
                     "$F_MEMBERS.${user.uid}" to memberData(user),
                     F_JOIN_CODE to code,
                 ),
-            ).awaitWrite(confirmed = true)
+            )
+            // Sin conexión Firestore no falla la escritura: la deja en cola y la envía al volver la
+            // conexión. Si tarda demasiado se avisa de que la unión se completará sola.
+            withTimeoutOrNull(CONFIRMED_WRITE_TIMEOUT_MS) { update.await(); true }
+                ?: throw AppError(AppError.Reason.JOIN_QUEUED)
         } catch (e: Exception) {
             val mapped = FirebaseErrors.map(e)
             if (mapped is AppError && mapped.reason == AppError.Reason.PERMISSION_DENIED) {
@@ -132,18 +136,20 @@ class FirestoreFinanceRepository(
     }
 
     override suspend fun leaveGroup(user: UserProfile, group: Group): Result<Unit> = firestoreCall {
-        leave(user, group, confirmed = false)
+        leave(user, group)
     }
 
     /**
-     * Sale de [group]; si era el último miembro, lo borra entero. Con [confirmed] cada escritura
-     * espera la confirmación del servidor (se usa al borrar la cuenta, cuando ya no habrá sesión
-     * para enviar después lo que quede pendiente).
+     * Sale de [group]; si era el último miembro, lo borra entero. Necesita conexión: todo se
+     * confirma con el servidor.
      *
      * Quién queda en el grupo se decide con el estado del servidor dentro de una transacción, no
      * con la copia local (que puede ir con retraso): si alguien acaba de unirse, el grupo no se borra.
      */
-    private suspend fun leave(user: UserProfile, group: Group, confirmed: Boolean) {
+    private suspend fun leave(user: UserProfile, group: Group) {
+        // Las transacciones no esperan a la cola de escrituras: un gasto aún subiéndose se
+        // rechazaría si antes saliéramos del grupo.
+        drainPendingWrites()
         val ref = groups.document(group.id)
         val lastMember = db.runTransaction { tx ->
             val snapshot = tx.get(ref)
@@ -156,8 +162,8 @@ class FirestoreFinanceRepository(
                     false
                 }
             }
-        }.awaitServer()
-        if (lastMember) deleteGroupCompletely(user, group, confirmed)
+        }.awaitServerUnlessDenied() ?: false
+        if (lastMember) deleteGroupCompletely(user, group)
     }
 
     private fun removeMemberUpdates(uid: String, snapshot: DocumentSnapshot, ids: List<String>): Map<String, Any> {
@@ -243,10 +249,11 @@ class FirestoreFinanceRepository(
     }
 
     override suspend fun purgeUser(user: UserProfile): Result<Unit> = firestoreCall {
+        drainPendingWrites()
         val myGroups = groups.whereArrayContains(F_MEMBER_IDS, user.uid)
             .get(Source.SERVER).await()
             .documents.mapNotNull { it.toGroup() }
-        myGroups.forEach { group -> leave(user, group, confirmed = true) }
+        myGroups.forEach { group -> leave(user, group) }
         // Cualquier otra escritura pendiente de este usuario debe llegar antes de borrar la cuenta.
         db.waitForPendingWrites().awaitWrite(confirmed = true)
     }
@@ -258,8 +265,13 @@ class FirestoreFinanceRepository(
             true
         } ?: false
 
+    /** Las transacciones van directas al servidor: antes hay que enviar lo que esté en cola. */
+    private suspend fun drainPendingWrites() {
+        db.waitForPendingWrites().awaitWrite(confirmed = true)
+    }
+
     /** Borra movimientos, fotos, código de invitación y el propio grupo. */
-    private suspend fun deleteGroupCompletely(user: UserProfile, group: Group, confirmed: Boolean) {
+    private suspend fun deleteGroupCompletely(user: UserProfile, group: Group) {
         // Lectura del servidor (no de la caché) para no dejar documentos huérfanos. Las fotos
         // usan el mismo id que su movimiento, así que no hace falta descargarlas para borrarlas.
         val movementDocs = movementsOf(group.id).get(Source.SERVER).await().documents
@@ -271,7 +283,8 @@ class FirestoreFinanceRepository(
         children.chunked(BATCH_LIMIT).forEach { chunk ->
             val batch = db.batch()
             chunk.forEach { batch.delete(it) }
-            batch.commit().awaitWrite(confirmed)
+            // Confirmado siempre: el grupo no puede desaparecer antes que sus movimientos.
+            batch.commit().awaitWrite(confirmed = true)
         }
         // Último paso, otra vez contra el servidor: si mientras tanto alguien se ha unido,
         // el grupo se conserva para esa persona y solo se sale de él.
@@ -288,7 +301,7 @@ class FirestoreFinanceRepository(
                     tx.update(ref, removeMemberUpdates(user.uid, snapshot, ids))
                 }
             }
-        }.awaitServer()
+        }.awaitServerUnlessDenied()
     }
 
     private fun DocumentSnapshot.memberIds(): List<String> =
@@ -346,6 +359,19 @@ class FirestoreFinanceRepository(
         private suspend fun <T> Task<T>.awaitServer(): T =
             withTimeoutOrNull(CONFIRMED_WRITE_TIMEOUT_MS) { listOf(await()) }?.single()
                 ?: throw AppError(AppError.Reason.NETWORK)
+
+        /**
+         * Como [awaitServer], pero devuelve null si las reglas niegan la lectura del grupo: un
+         * miembro siempre puede leerlo, así que significa que ya no somos miembros o que el grupo
+         * ya no existe (por ejemplo, al pulsar "Salir" dos veces o al repetir el borrado de la cuenta).
+         */
+        private suspend fun <T> Task<T>.awaitServerUnlessDenied(): T? =
+            try {
+                awaitServer()
+            } catch (e: FirebaseFirestoreException) {
+                if (e.code != FirebaseFirestoreException.Code.PERMISSION_DENIED) throw e
+                null
+            }
 
         /**
          * Espera la confirmación del servidor un tiempo prudencial. Sin conexión, Firestore
