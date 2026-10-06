@@ -133,7 +133,7 @@ class MainViewModelTest {
         vm.saveMovement(editorToken = 7L, movementId = null, draft = draft, newPhoto = null, removePhoto = false) { done = it }
         advanceUntilIdle()
         assertEquals(true, done)
-        assertEquals(7L, vm.uiState.value.savedEditorToken)
+        assertTrue(7L in vm.uiState.value.savedEditorTokens)
         assertTrue(vm.uiState.value.savingEditorTokens.isEmpty())
         assertEquals(listOf(draft), finance.saved)
     }

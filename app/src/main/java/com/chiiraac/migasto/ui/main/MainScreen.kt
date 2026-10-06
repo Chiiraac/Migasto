@@ -206,8 +206,9 @@ fun MainScreen(
         editorOpen = true
     }
 
-    LaunchedEffect(state.savedEditorToken) {
-        if (state.savedEditorToken == editorToken) editorOpen = false
+    val currentEditorSaved = editorToken in state.savedEditorTokens
+    LaunchedEffect(currentEditorSaved) {
+        if (currentEditorSaved) editorOpen = false
     }
 
     Scaffold(

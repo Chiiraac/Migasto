@@ -77,7 +77,9 @@ class AuthViewModel(
             }
             // Si va bien, el cambio de sesión lleva a la pantalla principal automáticamente.
             // El formulario se vacía para que, al cerrar sesión, no queden el email ni la contraseña.
-            if (result.isSuccess) {
+            // Si ya hay sesión (p. ej. la cuenta se creó pero falló guardar el nombre), el error
+            // no se muestra: el formulario debe quedar vacío para la próxima vez.
+            if (result.isSuccess || auth.authState.value is AuthState.SignedIn) {
                 state.value = AuthUiState(groupName = defaultGroupName)
             } else {
                 state.update { it.copy(loading = false, error = result.exceptionOrNull()?.messageRes()) }
@@ -114,7 +116,9 @@ class AuthViewModel(
             val provisional = UserProfile(UUID.randomUUID().toString(), current.name.trim(), null)
             val result = finance.createGroup(provisional, groupName, GroupIcon.HOME)
                 .mapCatching { auth.startLocal(current.name).getOrThrow() }
-            if (result.isSuccess) {
+            // Si ya hay sesión (p. ej. la cuenta se creó pero falló guardar el nombre), el error
+            // no se muestra: el formulario debe quedar vacío para la próxima vez.
+            if (result.isSuccess || auth.authState.value is AuthState.SignedIn) {
                 state.value = AuthUiState(groupName = defaultGroupName)
             } else {
                 state.update { it.copy(loading = false, error = result.exceptionOrNull()?.messageRes()) }

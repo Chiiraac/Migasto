@@ -54,8 +54,8 @@ data class MainUiState(
     val movements: List<Movement> = emptyList(),
     val movementsLoaded: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    /** Último editor (por su identificador) cuyo movimiento se guardó: la pantalla lo cierra. */
-    val savedEditorToken: Long? = null,
+    /** Editores (por su identificador) cuyo movimiento ya se guardó: la pantalla los cierra. */
+    val savedEditorTokens: Set<Long> = emptySet(),
     /** Editores cuyo guardado sigue en curso (sobrevive a la recreación de la actividad). */
     val savingEditorTokens: Set<Long> = emptySet(),
 ) {
@@ -125,12 +125,12 @@ class MainViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    private val savedEditorToken = MutableStateFlow<Long?>(null)
+    private val savedEditorTokens = MutableStateFlow<Set<Long>>(emptySet())
     private val savingEditorTokens = MutableStateFlow<Set<Long>>(emptySet())
 
-    private data class EditorState(val theme: ThemeMode, val saved: Long?, val saving: Set<Long>)
+    private data class EditorState(val theme: ThemeMode, val saved: Set<Long>, val saving: Set<Long>)
 
-    private val themeAndEditor = combine(preferences.themeMode, savedEditorToken, savingEditorTokens) { theme, saved, saving ->
+    private val themeAndEditor = combine(preferences.themeMode, savedEditorTokens, savingEditorTokens) { theme, saved, saving ->
         EditorState(theme, saved, saving)
     }
 
@@ -150,7 +150,7 @@ class MainViewModel(
             movements = movementList.orEmpty(),
             movementsLoaded = movementList != null,
             themeMode = editor.theme,
-            savedEditorToken = editor.saved,
+            savedEditorTokens = editor.saved,
             savingEditorTokens = editor.saving,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, MainUiState(isCloud = isCloud))
@@ -252,7 +252,9 @@ class MainViewModel(
                         post(if (movementId == null) R.string.movement_saved else R.string.movement_updated)
                         // Se guarda en el estado del ViewModel para cerrar el editor aunque la
                         // actividad se haya recreado (p. ej. al girar la pantalla) mientras se guardaba.
-                        savedEditorToken.value = editorToken
+                        // Conjunto (y no solo el último) para no perder un cierre si dos guardados
+                        // terminan casi a la vez.
+                        savedEditorTokens.update { (it + editorToken).toList().takeLast(MAX_SAVED_TOKENS).toSet() }
                         onDone(true)
                     }
                     .onFailure {
@@ -321,6 +323,7 @@ class MainViewModel(
 
     companion object {
         private const val MAX_LISTEN_RETRIES = 6
+        private const val MAX_SAVED_TOKENS = 20
 
         /** Reintenta una escucha fallida (500 ms, 1 s, 2 s… ~30 s en total) antes de rendirse. */
         private fun <T> Flow<T>.retryWithBackoff(): Flow<T> = retryWhen { _, attempt ->
