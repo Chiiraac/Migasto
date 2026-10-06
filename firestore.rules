@@ -40,17 +40,34 @@ service cloud.firestore {
         && request.resource.data.createdAt is int;
 
       allow update: if signedIn() && (
-        // Un miembro puede renombrar, cambiar el icono, salir, etc.
+        // El creador puede cambiarlo todo (nombre, quitar miembros, cerrar el grupo a nuevos
+        // miembros, cederlo al salir) salvo el código y la fecha de creación.
         (
-          uid() in resource.data.memberIds
+          uid() == resource.data.ownerId
           && request.resource.data.inviteCode == resource.data.inviteCode
           && request.resource.data.createdAt == resource.data.createdAt
           && validName(request.resource.data.name)
         )
         ||
-        // Alguien de fuera solo puede añadirse a sí mismo si conoce el código del grupo.
+        // Cualquier otro miembro puede renombrar, cambiar el icono, actualizar su propio
+        // nombre o salir del grupo, pero no tocar a los demás miembros.
+        (
+          uid() in resource.data.memberIds
+          && uid() != resource.data.ownerId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'icon', 'memberIds', 'members'])
+          && validName(request.resource.data.name)
+          && (
+            request.resource.data.memberIds == resource.data.memberIds
+            || request.resource.data.memberIds == resource.data.memberIds.removeAll([uid()])
+          )
+          && request.resource.data.members.diff(resource.data.members).affectedKeys().hasOnly([uid()])
+        )
+        ||
+        // Alguien de fuera solo puede añadirse a sí mismo si conoce el código del grupo
+        // y el grupo admite nuevos miembros.
         (
           !(uid() in resource.data.memberIds)
+          && resource.data.get('joinLocked', false) != true
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds', 'members', 'joinCode'])
           && request.resource.data.memberIds == resource.data.memberIds.concat([uid()])
           && request.resource.data.members.diff(resource.data.members).affectedKeys().hasOnly([uid()])
@@ -58,7 +75,8 @@ service cloud.firestore {
         )
       );
 
-      allow delete: if signedIn() && uid() in resource.data.memberIds;
+      // Solo el creador borra el grupo entero (el último miembro siempre es el creador).
+      allow delete: if signedIn() && uid() == resource.data.ownerId;
 
       // ---------- Movimientos ----------
       match /movements/{movementId} {
@@ -103,7 +121,11 @@ service cloud.firestore {
         && getAfter(groupPath(request.resource.data.groupId)).data.inviteCode == code
         && uid() in getAfter(groupPath(request.resource.data.groupId)).data.memberIds;
 
-      allow update: if false;
+      // El creador del grupo marca el código como cerrado (para avisar a quien intente unirse).
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['locked'])
+        && request.resource.data.locked is bool
+        && get(groupPath(resource.data.groupId)).data.ownerId == uid();
 
       allow delete: if signedIn() && uid() in get(groupPath(resource.data.groupId)).data.memberIds;
     }

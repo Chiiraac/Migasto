@@ -110,6 +110,7 @@ class FirestoreFinanceRepository(
         val codeSnapshot = inviteCodes.document(code).get(Source.SERVER).await()
         val groupId = codeSnapshot.getString(F_GROUP_ID)
             ?: throw AppError(AppError.Reason.INVALID_INVITE_CODE)
+        if (codeSnapshot.getBoolean(F_LOCKED) == true) throw AppError(AppError.Reason.GROUP_LOCKED)
         val groupRef = groups.document(groupId)
 
         try {
@@ -173,6 +174,40 @@ class FirestoreFinanceRepository(
         )
         if (snapshot.getString(F_OWNER_ID) == uid) updates[F_OWNER_ID] = ids.first { it != uid }
         return updates
+    }
+
+    override suspend fun removeMember(
+        user: UserProfile,
+        group: Group,
+        memberUid: String,
+        deleteMovements: Boolean,
+    ): Result<Unit> = firestoreCall {
+        if (group.ownerId != user.uid || memberUid == user.uid) throw AppError(AppError.Reason.PERMISSION_DENIED)
+        drainPendingWrites()
+        // Primero se le quita el acceso (así ya no puede añadir nada más) y después, si se pide,
+        // se borran sus movimientos y fotos.
+        val ref = groups.document(group.id)
+        db.runTransaction { tx ->
+            val snapshot = tx.get(ref)
+            if (memberUid in snapshot.memberIds()) {
+                tx.update(
+                    ref,
+                    mapOf(F_MEMBER_IDS to FieldValue.arrayRemove(memberUid), "$F_MEMBERS.$memberUid" to FieldValue.delete()),
+                )
+            }
+        }.awaitServer()
+        if (deleteMovements) {
+            val docs = movementsOf(group.id).whereEqualTo(F_CREATED_BY_ID, memberUid).get(Source.SERVER).await().documents
+            deleteMovementDocs(group.id, docs)
+        }
+    }
+
+    override suspend fun setJoinLocked(group: Group, locked: Boolean): Result<Unit> = firestoreCall {
+        val batch = db.batch()
+        batch.update(groups.document(group.id), F_JOIN_LOCKED, locked)
+        // El código también lo indica, para avisar a quien intente unirse (el grupo no se puede leer).
+        if (group.inviteCode.isNotBlank()) batch.update(inviteCodes.document(group.inviteCode), F_LOCKED, locked)
+        batch.commit().awaitOrQueued()
     }
 
     override suspend fun updateGroup(group: Group, name: String, icon: GroupIcon): Result<Unit> =
@@ -274,18 +309,7 @@ class FirestoreFinanceRepository(
     private suspend fun deleteGroupCompletely(user: UserProfile, group: Group) {
         // Lectura del servidor (no de la caché) para no dejar documentos huérfanos. Las fotos
         // usan el mismo id que su movimiento, así que no hace falta descargarlas para borrarlas.
-        val movementDocs = movementsOf(group.id).get(Source.SERVER).await().documents
-        val children = mutableListOf<DocumentReference>()
-        movementDocs.forEach { doc ->
-            children += doc.reference
-            if (doc.getBoolean(F_HAS_PHOTO) == true) children += photosOf(group.id).document(doc.id)
-        }
-        children.chunked(BATCH_LIMIT).forEach { chunk ->
-            val batch = db.batch()
-            chunk.forEach { batch.delete(it) }
-            // Confirmado siempre: el grupo no puede desaparecer antes que sus movimientos.
-            batch.commit().awaitWrite(confirmed = true)
-        }
+        deleteMovementDocs(group.id, movementsOf(group.id).get(Source.SERVER).await().documents)
         // Último paso, otra vez contra el servidor: si mientras tanto alguien se ha unido,
         // el grupo se conserva para esa persona y solo se sale de él.
         val ref = groups.document(group.id)
@@ -302,6 +326,21 @@ class FirestoreFinanceRepository(
                 }
             }
         }.awaitServerUnlessDenied()
+    }
+
+    /** Borra movimientos y sus fotos (mismo id), confirmados por el servidor. */
+    private suspend fun deleteMovementDocs(groupId: String, movementDocs: List<DocumentSnapshot>) {
+        val children = mutableListOf<DocumentReference>()
+        movementDocs.forEach { doc ->
+            children += doc.reference
+            if (doc.getBoolean(F_HAS_PHOTO) == true) children += photosOf(groupId).document(doc.id)
+        }
+        children.chunked(BATCH_LIMIT).forEach { chunk ->
+            val batch = db.batch()
+            chunk.forEach { batch.delete(it) }
+            // Confirmado siempre: el grupo no puede desaparecer antes que sus movimientos.
+            batch.commit().awaitWrite(confirmed = true)
+        }
     }
 
     private fun DocumentSnapshot.memberIds(): List<String> =
@@ -335,6 +374,8 @@ class FirestoreFinanceRepository(
         const val F_CREATED_AT = "createdAt"
         const val F_UPDATED_AT = "updatedAt"
         const val F_JOIN_CODE = "joinCode"
+        const val F_JOIN_LOCKED = "joinLocked"
+        const val F_LOCKED = "locked"
         const val F_GROUP_ID = "groupId"
         const val F_CREATED_BY = "createdBy"
         const val F_TYPE = "type"
@@ -420,6 +461,7 @@ private fun DocumentSnapshot.toGroup(): Group? {
         ownerId = getString(FirestoreFinanceRepository.F_OWNER_ID).orEmpty(),
         members = members,
         createdAt = getLong(FirestoreFinanceRepository.F_CREATED_AT) ?: 0L,
+        joinLocked = getBoolean(FirestoreFinanceRepository.F_JOIN_LOCKED) == true,
     )
 }
 

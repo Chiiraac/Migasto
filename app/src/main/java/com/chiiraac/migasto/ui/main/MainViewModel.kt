@@ -13,6 +13,7 @@ import com.chiiraac.migasto.R
 import com.chiiraac.migasto.data.AppError
 import com.chiiraac.migasto.data.model.Group
 import com.chiiraac.migasto.data.model.GroupIcon
+import com.chiiraac.migasto.data.model.Member
 import com.chiiraac.migasto.data.model.Movement
 import com.chiiraac.migasto.data.model.MovementDraft
 import com.chiiraac.migasto.data.model.PhotoChange
@@ -236,6 +237,25 @@ class MainViewModel(
         viewModelScope.launch {
             finance.leaveGroup(profile, group)
                 .onSuccess { post(if (isCloud) R.string.group_left else R.string.group_deleted, group.name) }
+                .onFailure(::postError)
+        }
+    }
+
+    /** Solo el creador: quita a [member] y, si [deleteMovements], también sus movimientos. */
+    fun removeMember(group: Group, member: Member, deleteMovements: Boolean) {
+        val profile = currentUser() ?: return
+        viewModelScope.launch {
+            finance.removeMember(profile, group, member.uid, deleteMovements)
+                .onSuccess { post(R.string.group_member_removed, member.name) }
+                .onFailure(::postError)
+        }
+    }
+
+    /** Solo el creador: cierra o vuelve a abrir el grupo a nuevos miembros. */
+    fun setJoinLocked(group: Group, locked: Boolean) {
+        viewModelScope.launch {
+            finance.setJoinLocked(group, locked)
+                .onSuccess { post(if (locked) R.string.group_locked_done else R.string.group_unlocked_done) }
                 .onFailure(::postError)
         }
     }

@@ -186,6 +186,55 @@ class FirebaseEmulatorTest {
         }
     }
 
+    @Test
+    fun ownerRemovesMembersAndClosesTheGroup() = runBlocking {
+        assumeTrue("Emuladores de Firebase no arrancados", isOpen(8080) && isOpen(9099))
+        withTimeout(60_000) {
+            val suffix = System.currentTimeMillis()
+            val users = listOf("olga", "pablo", "quique").map { name ->
+                val app = app("owner-$name")
+                val auth = FirebaseAuthRepository(FirebaseAuth.getInstance(app))
+                auth.register(name, "$name$suffix@example.com", "secreto123").getOrThrow()
+                Triple(auth, FirestoreFinanceRepository(FirebaseFirestore.getInstance(app)), auth.signedInUser())
+            }
+            val (_, repoO, olga) = users[0]
+            val (_, repoP, pablo) = users[1]
+            val (_, repoQ, quique) = users[2]
+
+            val group = repoO.createGroup(olga, "Piso", GroupIcon.HOME).getOrThrow()
+            repoP.joinGroup(pablo, group.inviteCode).getOrThrow()
+            val draft = MovementDraft(MovementType.EXPENSE, PaymentMethod.CASH, 1200, "Pan", "groceries", LocalDate.of(2026, 10, 6))
+            repoO.saveMovement(olga, group.id, null, draft, PhotoChange.Keep).getOrThrow()
+            repoP.saveMovement(pablo, group.id, null, draft, PhotoChange.Replace(byteArrayOf(1, 2, 3))).getOrThrow()
+            repoP.saveMovement(pablo, group.id, null, draft.copy(amountCents = 800), PhotoChange.Keep).getOrThrow()
+            repoO.observeMovements(group.id).first { it.size == 3 }
+
+            // Solo el creador gestiona el grupo
+            val notOwner = repoP.removeMember(pablo, group, olga.uid, deleteMovements = false).exceptionOrNull() as AppError
+            assertEquals(AppError.Reason.PERMISSION_DENIED, notOwner.reason)
+
+            // Grupo cerrado: nadie más puede unirse
+            repoO.setJoinLocked(group, true).getOrThrow()
+            assertTrue(repoO.observeGroups(olga).first { it.single().joinLocked }.single().joinLocked)
+            val locked = repoQ.joinGroup(quique, group.inviteCode).exceptionOrNull() as AppError
+            assertEquals(AppError.Reason.GROUP_LOCKED, locked.reason)
+
+            // Quitar a Pablo y sus movimientos: deja de ver el grupo y solo queda el de Olga
+            repoO.removeMember(olga, group, pablo.uid, deleteMovements = true).getOrThrow()
+            assertTrue(repoP.observeGroups(pablo).first { it.isEmpty() }.isEmpty())
+            val left = repoO.observeMovements(group.id).first { it.size == 1 }.single()
+            assertEquals(olga.uid, left.createdById)
+
+            // Al reabrirlo, se puede volver a entrar
+            repoO.setJoinLocked(group, false).getOrThrow()
+            repoQ.joinGroup(quique, group.inviteCode).getOrThrow()
+
+            repoQ.purgeUser(quique).getOrThrow()
+            repoO.purgeUser(olga).getOrThrow()
+            users.forEach { (auth, _, _) -> auth.deleteAccount().getOrThrow() }
+        }
+    }
+
     /** El emulador de Auth acepta tokens de Google "falsos" (JSON sin firmar) para probar el flujo. */
     private fun fakeGoogleToken(sub: String, email: String, name: String) =
         """{"sub":"$sub","email":"$email","email_verified":true,"name":"$name"}"""

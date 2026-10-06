@@ -18,6 +18,8 @@ class AppError(val reason: Reason, cause: Throwable? = null) : Exception(reason.
         ACCOUNT_DISABLED,
         /** La conexión se cortó al unirse a un grupo: la solicitud se completará al volver la conexión. */
         JOIN_QUEUED,
+        /** El creador ha cerrado el grupo a nuevos miembros. */
+        GROUP_LOCKED,
         PHOTO_TOO_LARGE,
         /** El usuario cerró la ventana (p. ej. el selector de cuentas de Google): no se muestra nada. */
         CANCELLED,

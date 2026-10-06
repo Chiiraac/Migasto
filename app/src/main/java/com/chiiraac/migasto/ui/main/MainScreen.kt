@@ -78,6 +78,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chiiraac.migasto.R
 import com.chiiraac.migasto.data.model.Group
 import com.chiiraac.migasto.data.model.GroupIcon
+import com.chiiraac.migasto.data.model.Member
 import com.chiiraac.migasto.data.model.Movement
 import com.chiiraac.migasto.data.model.MovementDraft
 import com.chiiraac.migasto.data.model.ThemeMode
@@ -114,6 +115,9 @@ class MainActions(
     val joinGroup: (String, (Throwable?) -> Unit) -> Unit = { _, _ -> },
     val leaveGroup: (Group) -> Unit = {},
     val updateGroup: (Group, String, GroupIcon) -> Unit = { _, _, _ -> },
+    /** (grupo, miembro, borrar también sus movimientos) — solo el creador. */
+    val removeMember: (Group, Member, Boolean) -> Unit = { _, _, _ -> },
+    val setJoinLocked: (Group, Boolean) -> Unit = { _, _ -> },
     val saveMovement: (Long, String?, MovementDraft, Uri?, Boolean, (Boolean) -> Unit) -> Unit = { _, _, _, _, _, _ -> },
     val deleteMovement: (Movement) -> Unit = {},
     val loadPhoto: suspend (Movement) -> ByteArray? = { null },
@@ -149,6 +153,8 @@ fun MainRoute(userId: String) {
             joinGroup = viewModel::joinGroup,
             leaveGroup = viewModel::leaveGroup,
             updateGroup = viewModel::updateGroup,
+            removeMember = viewModel::removeMember,
+            setJoinLocked = viewModel::setJoinLocked,
             saveMovement = viewModel::saveMovement,
             deleteMovement = viewModel::deleteMovement,
             loadPhoto = viewModel::loadPhoto,
@@ -344,6 +350,13 @@ fun MainScreen(
             group = group,
             currentUserId = state.user?.uid,
             isCloud = state.isCloud,
+            movementCounts = if (group.id == state.selectedGroup?.id) {
+                state.movements.groupingBy { it.createdById }.eachCount()
+            } else {
+                emptyMap()
+            },
+            onRemoveMember = { member, deleteMovements -> actions.removeMember(group, member, deleteMovements) },
+            onSetJoinLocked = { locked -> actions.setJoinLocked(group, locked) },
             onEdit = {
                 showGroupSettings = false
                 groupEditor = "edit"

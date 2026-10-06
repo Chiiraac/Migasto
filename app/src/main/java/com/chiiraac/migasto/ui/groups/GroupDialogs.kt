@@ -71,6 +71,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material.icons.rounded.PersonRemove
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.semantics.Role
+import com.chiiraac.migasto.data.model.Member
 import com.chiiraac.migasto.R
 import com.chiiraac.migasto.data.InviteCodes
 import com.chiiraac.migasto.data.model.Group
@@ -326,6 +334,10 @@ fun GroupSettingsDialog(
     onEdit: () -> Unit,
     onLeave: () -> Unit,
     onDismiss: () -> Unit,
+    /** Movimientos de cada miembro (uid → número), para avisar antes de borrarlos. */
+    movementCounts: Map<String, Int> = emptyMap(),
+    onRemoveMember: (member: Member, deleteMovements: Boolean) -> Unit = { _, _ -> },
+    onSetJoinLocked: (locked: Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
@@ -333,6 +345,9 @@ fun GroupSettingsDialog(
     val shareText = stringResource(R.string.group_share_text, group.name, group.inviteCode)
     val copiedText = stringResource(R.string.group_code_copied)
     var copied by rememberSaveable { mutableStateOf(false) }
+    // Solo el creador del grupo gestiona a los miembros y si se admiten nuevos.
+    val isOwner = isCloud && group.ownerId == currentUserId
+    var removingUid by rememberSaveable { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -358,6 +373,13 @@ fun GroupSettingsDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(8.dp))
+                    if (group.joinLocked && !isOwner) {
+                        Text(
+                            stringResource(R.string.group_closed_member),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -373,7 +395,7 @@ fun GroupSettingsDialog(
                             letterSpacing = 4.sp,
                             modifier = Modifier.weight(1f),
                         )
-                        IconButton(onClick = {
+                        IconButton(enabled = !group.joinLocked, onClick = {
                             scope.launch {
                                 clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(copiedText, group.inviteCode)))
                             }
@@ -384,7 +406,7 @@ fun GroupSettingsDialog(
                                 contentDescription = stringResource(R.string.action_copy),
                             )
                         }
-                        IconButton(onClick = {
+                        IconButton(enabled = !group.joinLocked, onClick = {
                             val intent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
                                 putExtra(Intent.EXTRA_TEXT, shareText)
@@ -396,10 +418,26 @@ fun GroupSettingsDialog(
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        stringResource(R.string.group_invite_hint),
+                        stringResource(if (group.joinLocked) R.string.group_allow_join_off else R.string.group_invite_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    }
+                    if (isOwner) {
+                        Spacer(Modifier.height(12.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(R.string.group_allow_join), style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    stringResource(if (group.joinLocked) R.string.group_allow_join_off else R.string.group_allow_join_on),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Switch(checked = !group.joinLocked, onCheckedChange = { onSetJoinLocked(!it) })
+                        }
+                    }
                     Spacer(Modifier.height(20.dp))
                 }
                 Text(
@@ -414,8 +452,9 @@ fun GroupSettingsDialog(
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             val you = if (member.uid == currentUserId) " " + stringResource(R.string.group_you) else ""
+                            val owner = if (isCloud && member.uid == group.ownerId) " " + stringResource(R.string.group_owner) else ""
                             Text(
-                                member.name + you,
+                                member.name + you + owner,
                                 style = MaterialTheme.typography.bodyLarge,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -427,6 +466,15 @@ fun GroupSettingsDialog(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                        if (isOwner && member.uid != currentUserId) {
+                            IconButton(onClick = { removingUid = member.uid }) {
+                                Icon(
+                                    Icons.Rounded.PersonRemove,
+                                    contentDescription = stringResource(R.string.group_remove_member, member.name),
+                                    tint = MaterialTheme.colorScheme.error,
                                 )
                             }
                         }
@@ -445,6 +493,89 @@ fun GroupSettingsDialog(
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) } },
     )
+
+    group.members.firstOrNull { it.uid == removingUid }?.let { member ->
+        RemoveMemberDialog(
+            member = member,
+            movementCount = movementCounts[member.uid] ?: 0,
+            groupOpen = !group.joinLocked,
+            onDismiss = { removingUid = null },
+            onConfirm = { deleteMovements ->
+                removingUid = null
+                onRemoveMember(member, deleteMovements)
+            },
+        )
+    }
+}
+
+/** El creador quita a un miembro: elige si borrar también los movimientos que añadió. */
+@Composable
+fun RemoveMemberDialog(
+    member: Member,
+    movementCount: Int,
+    groupOpen: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (deleteMovements: Boolean) -> Unit,
+) {
+    var deleteMovements by rememberSaveable { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.group_remove_title, member.name)) },
+        text = {
+            Column(Modifier.selectableGroup()) {
+                RemoveOption(
+                    selected = !deleteMovements,
+                    title = stringResource(R.string.group_remove_keep),
+                    body = stringResource(R.string.group_remove_keep_desc),
+                    onClick = { deleteMovements = false },
+                )
+                RemoveOption(
+                    selected = deleteMovements,
+                    title = stringResource(R.string.group_remove_delete),
+                    body = if (movementCount > 0) {
+                        pluralStringResource(R.plurals.group_remove_delete_count, movementCount, movementCount)
+                    } else {
+                        stringResource(R.string.group_remove_delete_desc)
+                    },
+                    onClick = { deleteMovements = true },
+                )
+                if (groupOpen) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.group_remove_rejoin_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(deleteMovements) },
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) { Text(stringResource(R.string.group_remove_confirm)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
+}
+
+@Composable
+private fun RemoveOption(selected: Boolean, title: String, body: String, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Spacer(Modifier.width(8.dp))
+        Column {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }
 
 /** Confirmación antes de salir de un grupo / eliminarlo. */

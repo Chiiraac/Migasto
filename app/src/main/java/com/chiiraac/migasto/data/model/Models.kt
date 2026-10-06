@@ -77,6 +77,8 @@ data class Group(
     val ownerId: String,
     val members: List<Member>,
     val createdAt: Long,
+    /** El creador ha cerrado el grupo: nadie más puede unirse con el código (modo nube). */
+    val joinLocked: Boolean = false,
 ) {
     fun memberName(uid: String): String? = members.firstOrNull { it.uid == uid }?.name
 }

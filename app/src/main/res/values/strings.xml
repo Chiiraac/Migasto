@@ -191,6 +191,27 @@
     <string name="group_share_text">¡Únete a mi grupo «%1$s» en MiGasto para llevar las cuentas juntos! Código de invitación: %2$s</string>
     <string name="group_joined">Te has unido a «%1$s»</string>
     <string name="group_join_queued">La conexión es lenta: te unirás al grupo en cuanto vuelva y aparecerá en tu lista.</string>
+    <string name="group_owner">(creador)</string>
+    <string name="group_remove_member">Quitar a %1$s del grupo</string>
+    <string name="group_remove_title">¿Quitar a %1$s del grupo?</string>
+    <string name="group_remove_keep">Solo quitarle el acceso</string>
+    <string name="group_remove_keep_desc">Sus movimientos se quedan en el grupo.</string>
+    <string name="group_remove_delete">Quitarle el acceso y borrar sus movimientos</string>
+    <string name="group_remove_delete_desc">Se borrarán todos los movimientos que añadió, con sus fotos.</string>
+    <plurals name="group_remove_delete_count">
+        <item quantity="one">Se borrará %1$d movimiento que añadió, con su foto.</item>
+        <item quantity="other">Se borrarán %1$d movimientos que añadió, con sus fotos.</item>
+    </plurals>
+    <string name="group_remove_rejoin_hint">Mientras el grupo admita nuevos miembros podrá volver a unirse con el código. Para evitarlo, desactiva «Admitir nuevos miembros».</string>
+    <string name="group_remove_confirm">Quitar</string>
+    <string name="group_member_removed">Has quitado a %1$s del grupo</string>
+    <string name="group_allow_join">Admitir nuevos miembros</string>
+    <string name="group_allow_join_on">Cualquiera con el código puede unirse.</string>
+    <string name="group_allow_join_off">Grupo cerrado: nadie más puede unirse.</string>
+    <string name="group_closed_member">El creador ha cerrado el grupo a nuevos miembros.</string>
+    <string name="group_locked_done">Grupo cerrado a nuevos miembros</string>
+    <string name="group_unlocked_done">El grupo vuelve a admitir nuevos miembros</string>
+    <string name="error_group_locked">Este grupo no admite nuevos miembros. Pide a quien lo creó que lo abra.</string>
     <string name="group_created">Grupo «%1$s» creado</string>
     <string name="group_left">Has salido de «%1$s»</string>
     <string name="group_deleted">Grupo «%1$s» eliminado</string>

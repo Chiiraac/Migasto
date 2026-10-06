@@ -1,5 +1,6 @@
 package com.chiiraac.migasto.data.repository
 
+import com.chiiraac.migasto.data.AppError
 import com.chiiraac.migasto.data.model.Group
 import com.chiiraac.migasto.data.model.GroupIcon
 import com.chiiraac.migasto.data.model.Movement
@@ -67,6 +68,17 @@ interface FinanceRepository {
     suspend fun leaveGroup(user: UserProfile, group: Group): Result<Unit>
 
     suspend fun updateGroup(group: Group, name: String, icon: GroupIcon): Result<Unit>
+
+    /**
+     * Solo el creador (modo nube): quita a un miembro del grupo y, si [deleteMovements], borra
+     * también los movimientos que añadió.
+     */
+    suspend fun removeMember(user: UserProfile, group: Group, memberUid: String, deleteMovements: Boolean): Result<Unit> =
+        Result.failure(AppError(AppError.Reason.NOT_AVAILABLE_OFFLINE_MODE))
+
+    /** Solo el creador (modo nube): cierra o vuelve a abrir el grupo a nuevos miembros. */
+    suspend fun setJoinLocked(group: Group, locked: Boolean): Result<Unit> =
+        Result.failure(AppError(AppError.Reason.NOT_AVAILABLE_OFFLINE_MODE))
 
     suspend fun saveMovement(
         user: UserProfile,

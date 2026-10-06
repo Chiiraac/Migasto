@@ -174,6 +174,55 @@ describe('grupos', () => {
   });
 });
 
+describe('gestión del creador', () => {
+  test('el creador quita a un miembro y este deja de ver el grupo', async () => {
+    await createGroup();
+    await join('laura');
+    await assertSucceeds(updateDoc(doc(db('emil'), 'groups', 'casa'), {
+      memberIds: arrayRemove('laura'),
+      'members.laura': deleteField(),
+    }));
+    await assertFails(getDoc(doc(db('laura'), 'groups', 'casa')));
+  });
+
+  test('un miembro no puede quitar a otro, ni cerrar ni borrar el grupo', async () => {
+    await createGroup();
+    await join('laura');
+    const store = db('laura');
+    await assertFails(updateDoc(doc(store, 'groups', 'casa'), {
+      memberIds: arrayRemove('emil'),
+      'members.emil': deleteField(),
+    }));
+    await assertFails(updateDoc(doc(store, 'groups', 'casa'), { joinLocked: true }));
+    await assertFails(updateDoc(doc(store, 'groups', 'casa'), { ownerId: 'laura' }));
+    await assertFails(updateDoc(doc(store, 'inviteCodes', 'ABC234'), { locked: true }));
+    await assertFails(deleteDoc(doc(store, 'groups', 'casa')));
+  });
+
+  test('con el grupo cerrado nadie más puede unirse', async () => {
+    await createGroup();
+    const store = db('emil');
+    const batch = writeBatch(store);
+    batch.update(doc(store, 'groups', 'casa'), { joinLocked: true });
+    batch.update(doc(store, 'inviteCodes', 'ABC234'), { locked: true });
+    await assertSucceeds(batch.commit());
+    await assertFails(join('laura'));
+    await assertSucceeds(updateDoc(doc(store, 'groups', 'casa'), { joinLocked: false }));
+    await assertSucceeds(join('laura'));
+  });
+
+  test('el creador puede salir cediendo el grupo', async () => {
+    await createGroup();
+    await join('laura');
+    await assertSucceeds(updateDoc(doc(db('emil'), 'groups', 'casa'), {
+      memberIds: arrayRemove('emil'),
+      'members.emil': deleteField(),
+      ownerId: 'laura',
+    }));
+    await assertSucceeds(updateDoc(doc(db('laura'), 'groups', 'casa'), { joinLocked: true }));
+  });
+});
+
 describe('movimientos', () => {
   test('los miembros crean, editan, leen y borran', async () => {
     await createGroup();

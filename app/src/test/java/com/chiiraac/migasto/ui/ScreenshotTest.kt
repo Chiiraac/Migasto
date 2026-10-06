@@ -19,6 +19,7 @@ import com.chiiraac.migasto.ui.auth.AuthUiState
 import com.chiiraac.migasto.ui.auth.WelcomeScreen
 import com.chiiraac.migasto.ui.components.LocalToday
 import com.chiiraac.migasto.ui.groups.GroupSettingsDialog
+import com.chiiraac.migasto.ui.groups.RemoveMemberDialog
 import com.chiiraac.migasto.ui.main.MainActions
 import com.chiiraac.migasto.ui.main.MainScreen
 import com.chiiraac.migasto.ui.main.MainTab
@@ -199,6 +200,21 @@ class ScreenshotTest {
             )
         }
         captureScreenRoboImage("build/screenshots/11_group_settings.png")
+    }
+
+    @Test
+    fun removeMember() {
+        shot("11b_remove_member") {
+            MainScreen(cloudState, MainActions(), initialTab = MainTab.SETTINGS)
+            RemoveMemberDialog(
+                member = TestData.group.members.last(),
+                movementCount = 3,
+                groupOpen = true,
+                onDismiss = {},
+                onConfirm = {},
+            )
+        }
+        captureScreenRoboImage("build/screenshots/11b_remove_member.png")
     }
 
     @Test
