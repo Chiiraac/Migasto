@@ -1,6 +1,12 @@
 package com.chiiraac.migasto.ui.main
 
+import android.Manifest
 import android.app.Application
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.chiiraac.migasto.MiGastoApplication
+import com.chiiraac.migasto.notifications.Notifications
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -118,6 +124,7 @@ class MainActions(
     /** (grupo, miembro, borrar también sus movimientos) — solo el creador. */
     val removeMember: (Group, Member, Boolean) -> Unit = { _, _, _ -> },
     val setJoinLocked: (Group, Boolean) -> Unit = { _, _ -> },
+    val setGroupNotifications: (Group, Boolean) -> Unit = { _, _ -> },
     val saveMovement: (Long, String?, MovementDraft, Uri?, Boolean, (Boolean) -> Unit) -> Unit = { _, _, _, _, _, _ -> },
     val deleteMovement: (Movement) -> Unit = {},
     val loadPhoto: suspend (Movement) -> ByteArray? = { null },
@@ -140,6 +147,20 @@ fun MainRoute(userId: String) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    // Avisos de movimientos nuevos: en Android 13+ hay que pedir permiso (el sistema solo lo
+    // muestra un par de veces; si se rechaza, se puede activar después en los ajustes del móvil).
+    val isCloud = (application as MiGastoApplication).container.isCloud
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    var askedNotifications by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (isCloud && !askedNotifications && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !Notifications.enabled(context)
+        ) {
+            askedNotifications = true
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     LaunchedEffect(viewModel) {
         viewModel.messages.collect { message ->
             snackbarHostState.showSnackbar(resources.getString(message.text, *message.args.toTypedArray()))
@@ -155,6 +176,7 @@ fun MainRoute(userId: String) {
             updateGroup = viewModel::updateGroup,
             removeMember = viewModel::removeMember,
             setJoinLocked = viewModel::setJoinLocked,
+            setGroupNotifications = viewModel::setGroupNotifications,
             saveMovement = viewModel::saveMovement,
             deleteMovement = viewModel::deleteMovement,
             loadPhoto = viewModel::loadPhoto,
@@ -357,6 +379,8 @@ fun MainScreen(
             },
             onRemoveMember = { member, deleteMovements -> actions.removeMember(group, member, deleteMovements) },
             onSetJoinLocked = { locked -> actions.setJoinLocked(group, locked) },
+            notificationsEnabled = if (state.isCloud) group.id !in state.mutedGroups else null,
+            onSetNotifications = { enabled -> actions.setGroupNotifications(group, enabled) },
             onEdit = {
                 showGroupSettings = false
                 groupEditor = "edit"

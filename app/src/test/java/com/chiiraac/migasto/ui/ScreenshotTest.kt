@@ -197,6 +197,7 @@ class ScreenshotTest {
                 onEdit = {},
                 onLeave = {},
                 onDismiss = {},
+                notificationsEnabled = true,
             )
         }
         captureScreenRoboImage("build/screenshots/11_group_settings.png")

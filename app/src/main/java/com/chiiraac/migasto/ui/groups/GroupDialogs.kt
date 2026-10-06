@@ -79,7 +79,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.Role
 import com.chiiraac.migasto.data.model.Member
+import android.provider.Settings
 import com.chiiraac.migasto.R
+import com.chiiraac.migasto.notifications.Notifications
 import com.chiiraac.migasto.data.InviteCodes
 import com.chiiraac.migasto.data.model.Group
 import com.chiiraac.migasto.data.model.GroupIcon
@@ -338,6 +340,9 @@ fun GroupSettingsDialog(
     movementCounts: Map<String, Int> = emptyMap(),
     onRemoveMember: (member: Member, deleteMovements: Boolean) -> Unit = { _, _ -> },
     onSetJoinLocked: (locked: Boolean) -> Unit = {},
+    /** Avisos de movimientos nuevos para mí en este grupo (null = no aplica, modo local). */
+    notificationsEnabled: Boolean? = null,
+    onSetNotifications: (enabled: Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
@@ -436,6 +441,33 @@ fun GroupSettingsDialog(
                             }
                             Spacer(Modifier.width(8.dp))
                             Switch(checked = !group.joinLocked, onCheckedChange = { onSetJoinLocked(!it) })
+                        }
+                    }
+                    Spacer(Modifier.height(20.dp))
+                }
+                if (notificationsEnabled != null) {
+                    val systemAllows = Notifications.enabled(context)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.group_notifications), style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                stringResource(
+                                    if (notificationsEnabled) R.string.group_notifications_on else R.string.group_notifications_off,
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Switch(checked = notificationsEnabled, onCheckedChange = onSetNotifications)
+                    }
+                    if (notificationsEnabled && !systemAllows) {
+                        TextButton(onClick = {
+                            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                            runCatching { context.startActivity(intent) }
+                        }) {
+                            Text(stringResource(R.string.group_notifications_blocked), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     Spacer(Modifier.height(20.dp))

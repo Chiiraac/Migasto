@@ -235,6 +235,32 @@ class FirebaseEmulatorTest {
         }
     }
 
+    @Test
+    fun notificationSettingsAreStoredPerUser() = runBlocking {
+        assumeTrue("Emuladores de Firebase no arrancados", isOpen(8080) && isOpen(9099))
+        withTimeout(60_000) {
+            val suffix = System.currentTimeMillis()
+            val app = app("avisos")
+            val auth = FirebaseAuthRepository(FirebaseAuth.getInstance(app))
+            val repo = FirestoreFinanceRepository(FirebaseFirestore.getInstance(app))
+            auth.register("Rosa", "rosa$suffix@example.com", "secreto123").getOrThrow()
+            val rosa = auth.signedInUser()
+
+            // Por defecto, ningún grupo silenciado
+            assertEquals(emptySet<String>(), repo.observeMutedGroups(rosa).first())
+            repo.registerPushToken(rosa, "token-1", "es").getOrThrow()
+            repo.setGroupNotifications(rosa, "casa", enabled = false).getOrThrow()
+            assertEquals(setOf("casa"), repo.observeMutedGroups(rosa).first { it.isNotEmpty() })
+            repo.setGroupNotifications(rosa, "casa", enabled = true).getOrThrow()
+            assertEquals(emptySet<String>(), repo.observeMutedGroups(rosa).first { it.isEmpty() })
+            repo.unregisterPushToken(rosa, "token-1").getOrThrow()
+
+            // Al borrar la cuenta desaparecen también sus ajustes de avisos
+            repo.purgeUser(rosa).getOrThrow()
+            auth.deleteAccount().getOrThrow()
+        }
+    }
+
     /** El emulador de Auth acepta tokens de Google "falsos" (JSON sin firmar) para probar el flujo. */
     private fun fakeGoogleToken(sub: String, email: String, name: String) =
         """{"sub":"$sub","email":"$email","email_verified":true,"name":"$name"}"""

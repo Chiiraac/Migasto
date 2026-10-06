@@ -52,6 +52,7 @@ class FirestoreFinanceRepository(
 
     private val groups = db.collection(GROUPS)
     private val inviteCodes = db.collection(INVITE_CODES)
+    private val users = db.collection(USERS)
 
     private fun movementsOf(groupId: String) = groups.document(groupId).collection(MOVEMENTS)
     private fun photosOf(groupId: String) = groups.document(groupId).collection(PHOTOS)
@@ -289,8 +290,37 @@ class FirestoreFinanceRepository(
             .get(Source.SERVER).await()
             .documents.mapNotNull { it.toGroup() }
         myGroups.forEach { group -> leave(user, group) }
+        // Sus ajustes de avisos (tokens de sus móviles) también se borran.
+        users.document(user.uid).delete().awaitWrite(confirmed = true)
         // Cualquier otra escritura pendiente de este usuario debe llegar antes de borrar la cuenta.
         db.waitForPendingWrites().awaitWrite(confirmed = true)
+    }
+
+    // ---------- Avisos ----------
+
+    override fun observeMutedGroups(user: UserProfile): Flow<Set<String>> =
+        users.document(user.uid).snapshotFlow().map { snapshot ->
+            (snapshot.get(F_MUTED_GROUPS) as? List<*>).orEmpty().filterIsInstance<String>().toSet()
+        }
+
+    override suspend fun setGroupNotifications(user: UserProfile, groupId: String, enabled: Boolean): Result<Unit> =
+        firestoreCall {
+            val change = if (enabled) FieldValue.arrayRemove(groupId) else FieldValue.arrayUnion(groupId)
+            users.document(user.uid).set(mapOf(F_MUTED_GROUPS to change), SetOptions.merge()).awaitOrQueued()
+        }
+
+    override suspend fun registerPushToken(user: UserProfile, token: String, language: String): Result<Unit> =
+        firestoreCall {
+            users.document(user.uid)
+                .set(mapOf(F_FCM_TOKENS to FieldValue.arrayUnion(token), F_LANG to language.take(10)), SetOptions.merge())
+                .awaitOrQueued()
+        }
+
+    override suspend fun unregisterPushToken(user: UserProfile, token: String): Result<Unit> = firestoreCall {
+        // Con la sesión aún abierta: después ya no se tendría permiso para tocar el documento.
+        users.document(user.uid)
+            .set(mapOf(F_FCM_TOKENS to FieldValue.arrayRemove(token)), SetOptions.merge())
+            .awaitWrite(confirmed = true)
     }
 
     override suspend fun flushPendingWrites(timeoutMs: Long): Boolean =
@@ -363,6 +393,7 @@ class FirestoreFinanceRepository(
         const val MOVEMENTS = "movements"
         const val PHOTOS = "photos"
         const val INVITE_CODES = "inviteCodes"
+        const val USERS = "users"
 
         const val F_NAME = "name"
         const val F_EMAIL = "email"
@@ -376,6 +407,9 @@ class FirestoreFinanceRepository(
         const val F_JOIN_CODE = "joinCode"
         const val F_JOIN_LOCKED = "joinLocked"
         const val F_LOCKED = "locked"
+        const val F_FCM_TOKENS = "fcmTokens"
+        const val F_MUTED_GROUPS = "mutedGroups"
+        const val F_LANG = "lang"
         const val F_GROUP_ID = "groupId"
         const val F_CREATED_BY = "createdBy"
         const val F_TYPE = "type"
@@ -428,6 +462,17 @@ class FirestoreFinanceRepository(
 }
 
 private fun Query.snapshotFlow(): Flow<QuerySnapshot> = callbackFlow {
+    val registration = addSnapshotListener { snapshot, error ->
+        if (error != null) {
+            close(FirebaseErrors.map(error))
+            return@addSnapshotListener
+        }
+        if (snapshot != null) trySend(snapshot)
+    }
+    awaitClose { registration.remove() }
+}
+
+private fun DocumentReference.snapshotFlow(): Flow<DocumentSnapshot> = callbackFlow {
     val registration = addSnapshotListener { snapshot, error ->
         if (error != null) {
             close(FirebaseErrors.map(error))

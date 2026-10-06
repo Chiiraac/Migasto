@@ -1,5 +1,6 @@
 package com.chiiraac.migasto
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,6 +17,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chiiraac.migasto.data.model.ThemeMode
 import com.chiiraac.migasto.data.repository.AuthState
+import com.chiiraac.migasto.notifications.Notifications
 import com.chiiraac.migasto.ui.auth.AuthRoute
 import com.chiiraac.migasto.ui.auth.WelcomeRoute
 import com.chiiraac.migasto.ui.main.MainRoute
@@ -29,6 +31,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val container = (application as MiGastoApplication).container
+        if (savedInstanceState == null) handleNotificationIntent(intent)
         splashScreen.setKeepOnScreenCondition {
             container.authRepository.authState.value == AuthState.Loading || container.themeMode.value == null
         }
@@ -39,6 +42,17 @@ class MainActivity : ComponentActivity() {
                 MiGastoRoot(container)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleNotificationIntent(intent)
+    }
+
+    /** Al tocar un aviso de movimiento nuevo se abre su grupo. */
+    private fun handleNotificationIntent(intent: Intent?) {
+        val groupId = intent?.getStringExtra(Notifications.EXTRA_GROUP_ID) ?: return
+        (application as MiGastoApplication).container.openGroupRequest.value = groupId
     }
 }
 

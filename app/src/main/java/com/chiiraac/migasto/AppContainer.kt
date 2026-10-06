@@ -11,6 +11,11 @@ import com.chiiraac.migasto.data.remote.FirebaseAuthRepository
 import com.chiiraac.migasto.data.remote.FirestoreFinanceRepository
 import com.chiiraac.migasto.data.remote.PendingNames
 import com.chiiraac.migasto.data.repository.AuthRepository
+import com.chiiraac.migasto.data.repository.AuthState
+import com.chiiraac.migasto.notifications.FirebasePushTokens
+import com.chiiraac.migasto.notifications.PushTokens
+import java.util.Locale
+import kotlinx.coroutines.flow.MutableStateFlow
 import com.chiiraac.migasto.data.repository.FinanceRepository
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
@@ -54,6 +59,18 @@ class AppContainer(context: Context) {
         } else {
             LocalAuthRepository(preferences, applicationScope)
         }
+    }
+
+    /** Token de avisos de este móvil (solo en modo nube). */
+    val pushTokens: PushTokens? = if (isCloud) FirebasePushTokens() else null
+
+    /** Grupo que pidió abrir un aviso tocado (lo atiende la pantalla principal). */
+    val openGroupRequest = MutableStateFlow<String?>(null)
+
+    /** Guarda el token de avisos para la cuenta con la sesión abierta (si la hay). */
+    suspend fun registerPushToken(token: String) {
+        val user = (authRepository.authState.value as? AuthState.SignedIn)?.user ?: return
+        financeRepository.registerPushToken(user, token, Locale.getDefault().language)
     }
 
     val financeRepository: FinanceRepository by lazy {

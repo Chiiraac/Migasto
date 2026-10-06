@@ -48,6 +48,12 @@ import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.filterNotNull
+import java.util.Locale
+import com.chiiraac.migasto.notifications.PushTokens
 
 data class MainUiState(
     val user: UserProfile? = null,
@@ -64,6 +70,8 @@ data class MainUiState(
     val savingEditorTokens: Set<Long> = emptySet(),
     /** Cierre de sesión en curso (vive en el ViewModel para sobrevivir a un giro de pantalla). */
     val signOutState: SignOutState = SignOutState.IDLE,
+    /** Grupos con los avisos de movimientos nuevos desactivados (modo nube). */
+    val mutedGroups: Set<String> = emptySet(),
 ) {
     /** Nombre a mostrar del autor de un movimiento (actualizado si cambió su nombre). */
     fun authorName(movement: Movement): String =
@@ -89,6 +97,10 @@ class MainViewModel(
     private val finance: FinanceRepository,
     private val preferences: UserPreferences,
     private val isCloud: Boolean,
+    /** Token de avisos de este móvil (null en modo local y en los tests). */
+    private val pushTokens: PushTokens? = null,
+    /** Grupo pedido al tocar un aviso; se selecciona en cuanto aparece en la lista. */
+    private val openGroupRequest: MutableStateFlow<String?> = MutableStateFlow(null),
 ) : ViewModel() {
 
     private val messageChannel = Channel<UiMessage>(Channel.BUFFERED)
@@ -145,11 +157,16 @@ class MainViewModel(
     private val signOutState = MutableStateFlow(SignOutState.IDLE)
     private var signOutJob: Job? = null
 
+    private val mutedGroups: Flow<Set<String>> = user.flatMapLatest { profile ->
+        if (profile == null) flowOf(emptySet()) else finance.observeMutedGroups(profile).catch { emit(emptySet()) }
+    }
+
     private data class EditorState(
         val theme: ThemeMode,
         val saved: Set<Long>,
         val saving: Set<Long>,
         val signOut: SignOutState,
+        val muted: Set<String>,
     )
 
     private val themeAndEditor = combine(
@@ -157,8 +174,9 @@ class MainViewModel(
         savedEditorTokens,
         savingEditorTokens,
         signOutState,
-    ) { theme, saved, saving, signOut ->
-        EditorState(theme, saved, saving, signOut)
+        mutedGroups,
+    ) { theme, saved, saving, signOut, muted ->
+        EditorState(theme, saved, saving, signOut, muted)
     }
 
     val uiState: StateFlow<MainUiState> = combine(
@@ -180,8 +198,28 @@ class MainViewModel(
             savedEditorTokens = editor.saved,
             savingEditorTokens = editor.saving,
             signOutState = editor.signOut,
+            mutedGroups = editor.muted,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, MainUiState(isCloud = isCloud))
+
+    init {
+        // Este móvil recibe los avisos de la cuenta con la sesión abierta.
+        if (isCloud && pushTokens != null) {
+            viewModelScope.launch {
+                user.filterNotNull().distinctUntilChangedBy { it.uid }.collect { profile ->
+                    pushTokens.current()?.let { finance.registerPushToken(profile, it, Locale.getDefault().language) }
+                }
+            }
+        }
+        // Al tocar un aviso se abre su grupo (cuando ya está en la lista).
+        viewModelScope.launch {
+            openGroupRequest.filterNotNull().collect { groupId ->
+                withTimeoutOrNull(OPEN_GROUP_WAIT_MS) { groups.first { list -> list?.any { it.id == groupId } == true } }
+                    ?.let { selectGroup(groupId) }
+                openGroupRequest.compareAndSet(groupId, null)
+            }
+        }
+    }
 
     private fun currentUser(): UserProfile? = user.value
 
@@ -257,6 +295,14 @@ class MainViewModel(
             finance.setJoinLocked(group, locked)
                 .onSuccess { post(if (locked) R.string.group_locked_done else R.string.group_unlocked_done) }
                 .onFailure(::postError)
+        }
+    }
+
+    /** Activa o desactiva para mí los avisos de movimientos nuevos de [group]. */
+    fun setGroupNotifications(group: Group, enabled: Boolean) {
+        val profile = currentUser() ?: return
+        viewModelScope.launch {
+            finance.setGroupNotifications(profile, group.id, enabled).onFailure(::postError)
         }
     }
 
@@ -366,6 +412,13 @@ class MainViewModel(
                     return@launch
                 }
             }
+            // Este móvil deja de recibir avisos de esta cuenta (antes de perder la sesión).
+            val profile = currentUser()
+            if (isCloud && profile != null) {
+                withTimeoutOrNull(UNREGISTER_PUSH_MS) {
+                    pushTokens?.current()?.let { finance.unregisterPushToken(profile, it) }
+                }
+            }
             TempFiles.clearAll(application)
             if (isCloud) GoogleSignIn.clearSession(application)
             auth.signOut()
@@ -408,6 +461,8 @@ class MainViewModel(
         private const val MAX_LISTEN_RETRIES = 6
         private const val MAX_SAVED_TOKENS = 20
         private const val SIGN_OUT_FLUSH_MS = 10_000L
+        private const val UNREGISTER_PUSH_MS = 5_000L
+        private const val OPEN_GROUP_WAIT_MS = 15_000L
 
         /** Reintenta una escucha fallida (500 ms, 1 s, 2 s… ~30 s en total) antes de rendirse. */
         private fun <T> Flow<T>.retryWithBackoff(): Flow<T> = retryWhen { _, attempt ->
@@ -428,6 +483,8 @@ class MainViewModel(
                     finance = container.financeRepository,
                     preferences = container.preferences,
                     isCloud = container.isCloud,
+                    pushTokens = container.pushTokens,
+                    openGroupRequest = container.openGroupRequest,
                 )
             }
         }

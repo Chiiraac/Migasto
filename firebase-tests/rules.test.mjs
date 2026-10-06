@@ -223,6 +223,18 @@ describe('gestión del creador', () => {
   });
 });
 
+describe('ajustes de avisos', () => {
+  test('cada usuario gestiona solo su documento', async () => {
+    await assertSucceeds(setDoc(doc(db('emil'), 'users', 'emil'), { fcmTokens: arrayUnion('t1'), lang: 'es' }, { merge: true }));
+    await assertSucceeds(setDoc(doc(db('emil'), 'users', 'emil'), { mutedGroups: arrayUnion('casa') }, { merge: true }));
+    await assertSucceeds(getDoc(doc(db('emil'), 'users', 'emil')));
+    await assertFails(getDoc(doc(db('laura'), 'users', 'emil')));
+    await assertFails(setDoc(doc(db('laura'), 'users', 'emil'), { fcmTokens: ['robado'] }, { merge: true }));
+    await assertFails(setDoc(doc(db('emil'), 'users', 'emil'), { admin: true }, { merge: true }));
+    await assertSucceeds(deleteDoc(doc(db('emil'), 'users', 'emil')));
+  });
+});
+
 describe('movimientos', () => {
   test('los miembros crean, editan, leen y borran', async () => {
     await createGroup();

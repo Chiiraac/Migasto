@@ -110,6 +110,21 @@ service cloud.firestore {
       }
     }
 
+    // ---------- Ajustes de avisos de cada usuario ----------
+    // Tokens de sus móviles para las notificaciones, grupos silenciados e idioma.
+    // Solo los lee y escribe su dueño (la Cloud Function los lee con permisos de servidor).
+    match /users/{userId} {
+      allow read, delete: if signedIn() && uid() == userId;
+      allow create, update: if signedIn() && uid() == userId
+        && request.resource.data.keys().hasOnly(['fcmTokens', 'mutedGroups', 'lang'])
+        && request.resource.data.get('fcmTokens', []) is list
+        && request.resource.data.get('fcmTokens', []).size() <= 30
+        && request.resource.data.get('mutedGroups', []) is list
+        && request.resource.data.get('mutedGroups', []).size() <= 200
+        && request.resource.data.get('lang', 'es') is string
+        && request.resource.data.get('lang', 'es').size() <= 10;
+    }
+
     // ---------- Códigos de invitación ----------
     match /inviteCodes/{code} {
       // Se puede leer un código concreto, pero nunca listarlos.

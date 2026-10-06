@@ -9,6 +9,7 @@ import com.chiiraac.migasto.data.model.PhotoChange
 import com.chiiraac.migasto.data.model.UserProfile
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
 
 sealed interface AuthState {
     data object Loading : AuthState
@@ -103,4 +104,19 @@ interface FinanceRepository {
      * Devuelve false si aún queda algo pendiente. En modo local no hay nada que enviar.
      */
     suspend fun flushPendingWrites(timeoutMs: Long): Boolean = true
+
+    // ---------- Avisos (modo nube; en local no hay nada que avisar) ----------
+
+    /** Grupos en los que [user] ha desactivado los avisos de movimientos nuevos. */
+    fun observeMutedGroups(user: UserProfile): Flow<Set<String>> = flowOf(emptySet())
+
+    suspend fun setGroupNotifications(user: UserProfile, groupId: String, enabled: Boolean): Result<Unit> =
+        Result.success(Unit)
+
+    /** Guarda el token de avisos de este móvil (y el idioma en que escribirle). */
+    suspend fun registerPushToken(user: UserProfile, token: String, language: String): Result<Unit> =
+        Result.success(Unit)
+
+    /** Al cerrar sesión: este móvil deja de recibir avisos de esa cuenta. */
+    suspend fun unregisterPushToken(user: UserProfile, token: String): Result<Unit> = Result.success(Unit)
 }

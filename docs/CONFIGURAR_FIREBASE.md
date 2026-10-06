@@ -50,6 +50,22 @@ Solo falta activar **Authentication → Correo electrónico/contraseña** desde 
 
 Si al pulsar el botón sale «El inicio de sesión con Google no está disponible en esta versión», falta la huella SHA-1 del certificado con el que está firmada esa copia de la app.
 
+### Avisos de movimientos nuevos (opcional, plan Blaze)
+Cuando un miembro añade un movimiento, el resto del grupo recibe una notificación (cada uno puede desactivarla por grupo en *Ajustes del grupo*). La envía la Cloud Function de [`functions/`](../functions), que necesita el plan **Blaze** (pago por uso; con el uso de una familia o un piso compartido, el coste es prácticamente 0 €).
+
+1. Consola de Firebase → abajo a la izquierda, plan **Spark** → **Actualizar** → **Blaze** y vincula una cuenta de facturación.
+2. Pon una alerta: <https://console.cloud.google.com/billing/budgets> → **Crear presupuesto** → importe **1 €**, avisos al 50 %, 90 % y 100 %.
+3. En **Cloud Shell** (icono `>_` de la consola):
+   ```bash
+   rm -rf Migasto && git clone -b claude/android-app-apk-playstore-ol8yi9 https://github.com/Chiiraac/Migasto.git && cd Migasto
+   (cd functions && npm ci)
+   firebase login --no-localhost
+   firebase deploy --only firestore:rules,functions --project migasto-chiiraac
+   ```
+   - `firebase login` muestra un enlace: ábrelo, entra con tu cuenta de Google y pega en la consola el código que aparece al final (ese código no se comparte con nadie).
+   - Si pregunta cuántos días guardar las imágenes de contenedor, responde **1**.
+   - Si el primer despliegue falla por permisos de «Eventarc» o «service agent», espera 2–3 minutos y repite el último comando: es normal la primera vez.
+
 ## 4. Crear la base de datos
 
 1. Menú **Build → Firestore Database → Crear base de datos**.

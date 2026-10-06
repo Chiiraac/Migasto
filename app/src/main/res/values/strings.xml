@@ -191,6 +191,12 @@
     <string name="group_share_text">¡Únete a mi grupo «%1$s» en MiGasto para llevar las cuentas juntos! Código de invitación: %2$s</string>
     <string name="group_joined">Te has unido a «%1$s»</string>
     <string name="group_join_queued">La conexión es lenta: te unirás al grupo en cuanto vuelva y aparecerá en tu lista.</string>
+    <string name="group_notifications">Avisarme de movimientos nuevos</string>
+    <string name="group_notifications_on">Recibirás un aviso cuando otro miembro añada un movimiento.</string>
+    <string name="group_notifications_off">No recibirás avisos de este grupo.</string>
+    <string name="group_notifications_blocked">Las notificaciones de MiGasto están desactivadas en el móvil. Toca aquí para activarlas.</string>
+    <string name="notification_channel_movements">Movimientos de tus grupos</string>
+    <string name="notification_channel_movements_desc">Avisos cuando otro miembro añade un gasto, un ingreso o una factura.</string>
     <string name="group_owner">(creador)</string>
     <string name="group_remove_member">Quitar a %1$s del grupo</string>
     <string name="group_remove_title">¿Quitar a %1$s del grupo?</string>
@@ -200,6 +206,7 @@
     <string name="group_remove_delete_desc">Se borrarán todos los movimientos que añadió, con sus fotos.</string>
     <plurals name="group_remove_delete_count">
         <item quantity="one">Se borrará %1$d movimiento que añadió, con su foto.</item>
+        <item quantity="many">Se borrarán %1$d movimientos que añadió, con sus fotos.</item>
         <item quantity="other">Se borrarán %1$d movimientos que añadió, con sus fotos.</item>
     </plurals>
     <string name="group_remove_rejoin_hint">Mientras el grupo admita nuevos miembros podrá volver a unirse con el código. Para evitarlo, desactiva «Admitir nuevos miembros».</string>

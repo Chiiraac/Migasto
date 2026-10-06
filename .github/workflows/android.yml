@@ -126,3 +126,9 @@ jobs:
       - name: Repositorios Android contra los emuladores
         working-directory: firebase-tests
         run: npm run test:android
+
+      - name: Cloud Function de avisos
+        working-directory: functions
+        run: |
+          npm ci
+          npm test

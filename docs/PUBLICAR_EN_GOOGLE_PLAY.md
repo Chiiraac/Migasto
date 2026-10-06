@@ -76,6 +76,7 @@ Tipos de datos (todos: **recogidos**, **no compartidos**, tratados de forma **no
 | Información personal → **Nombre** | Obligatorio | Funcionalidad de la app, Gestión de la cuenta |
 | Información personal → **Dirección de correo electrónico** | Obligatorio | Funcionalidad de la app, Gestión de la cuenta |
 | Información personal → **IDs de usuario** (identificador de la cuenta en Firebase) | Obligatorio | Funcionalidad de la app, Gestión de la cuenta |
+| Identificadores del dispositivo u otros → **IDs de dispositivo u otros** (token de notificaciones) | Opcional | Funcionalidad de la app |
 | Información financiera → **Otra información financiera** (movimientos que introduce el usuario) | Obligatorio | Funcionalidad de la app |
 | Fotos y vídeos → **Fotos** (tickets) | Opcional | Funcionalidad de la app |
 
