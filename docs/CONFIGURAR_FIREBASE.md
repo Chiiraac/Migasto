@@ -55,16 +55,11 @@ Cuando un miembro añade un movimiento, el resto del grupo recibe una notificaci
 
 1. Consola de Firebase → abajo a la izquierda, plan **Spark** → **Actualizar** → **Blaze** y vincula una cuenta de facturación.
 2. Pon una alerta: <https://console.cloud.google.com/billing/budgets> → **Crear presupuesto** → importe **1 €**, avisos al 50 %, 90 % y 100 %.
-3. En **Cloud Shell** (icono `>_` de la consola):
+3. En **Cloud Shell** (icono `>_` de la consola) pega esta única línea:
    ```bash
-   rm -rf Migasto && git clone -b claude/android-app-apk-playstore-ol8yi9 https://github.com/Chiiraac/Migasto.git && cd Migasto
-   (cd functions && npm ci)
-   firebase login --no-localhost
-   firebase deploy --only firestore:rules,functions --project migasto-chiiraac
+   cd ~ && rm -rf Migasto && git clone -q -b claude/android-app-apk-playstore-ol8yi9 https://github.com/Chiiraac/Migasto.git && bash Migasto/tools/desplegar-firebase.sh
    ```
-   - `firebase login` muestra un enlace: ábrelo, entra con tu cuenta de Google y pega en la consola el código que aparece al final (ese código no se comparte con nadie).
-   - Si pregunta cuántos días guardar las imágenes de contenedor, responde **1**.
-   - Si el primer despliegue falla por permisos de «Eventarc» o «service agent», espera 2–3 minutos y repite el último comando: es normal la primera vez.
+   El script ([`tools/desplegar-firebase.sh`](../tools/desplegar-firebase.sh)) instala lo necesario, solo pide `firebase login` si hace falta (abre el enlace, entra con tu cuenta y pega el código del final; ese código no se comparte con nadie) y publica las reglas y la función, reintentando solo si el primer despliegue falla por los permisos internos que Google prepara la primera vez.
 
 ## 4. Crear la base de datos
 
