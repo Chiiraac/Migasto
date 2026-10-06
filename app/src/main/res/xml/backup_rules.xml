@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copia de seguridad de Android (hasta Android 11). -->
+<full-backup-content>
+    <include domain="database" path="migasto.db" />
+    <include domain="file" path="photos/" />
+    <include domain="file" path="datastore/" />
+</full-backup-content>

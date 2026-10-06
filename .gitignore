@@ -1,0 +1,26 @@
+# Gradle / Android Studio
+.gradle/
+build/
+/local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+
+# Secretos de firma y configuración privada — NUNCA subir al repositorio
+keystore.properties
+*.jks
+*.keystore
+app/google-services.json
+
+# Salidas locales
+/release-output/
+app/screenshots-tmp/
+
+# Logs de los emuladores de Firebase
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

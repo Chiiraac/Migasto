@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
+    <string name="app_name" translatable="false">MiGasto</string>
+    <string name="privacy_policy_url" translatable="false">https://chiiraac.github.io/Migasto/privacy-policy.html</string>
+
+    <!-- Acciones comunes -->
+    <string name="action_save">Guardar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_close">Cerrar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_edit">Editar</string>
+    <string name="action_create">Crear</string>
+    <string name="action_join">Unirse</string>
+    <string name="action_copy">Copiar</string>
+    <string name="action_share">Compartir</string>
+
+    <!-- Tipos y cuentas -->
+    <string name="type_expense">Gasto</string>
+    <string name="type_income">Ingreso</string>
+    <string name="type_bill">Factura</string>
+    <string name="type_transfer">Traspaso</string>
+    <string name="method_bank">Banco</string>
+    <string name="method_cash">Efectivo</string>
+    <string name="transfer_bank_to_cash">Banco → Efectivo</string>
+    <string name="transfer_cash_to_bank">Efectivo → Banco</string>
+
+    <!-- Categorías -->
+    <string name="cat_salary">Sueldo</string>
+    <string name="cat_extra_income">Ingresos extra</string>
+    <string name="cat_sales">Ventas</string>
+    <string name="cat_investments">Inversiones</string>
+    <string name="cat_refunds">Reembolsos</string>
+    <string name="cat_groceries">Supermercado</string>
+    <string name="cat_restaurants">Restaurantes</string>
+    <string name="cat_home">Casa</string>
+    <string name="cat_rent">Alquiler / Hipoteca</string>
+    <string name="cat_electricity">Luz</string>
+    <string name="cat_water">Agua</string>
+    <string name="cat_gas">Gas</string>
+    <string name="cat_internet">Internet y móvil</string>
+    <string name="cat_insurance">Seguros</string>
+    <string name="cat_transport">Transporte</string>
+    <string name="cat_leisure">Ocio</string>
+    <string name="cat_health">Salud</string>
+    <string name="cat_clothing">Ropa</string>
+    <string name="cat_beauty">Cuidado personal</string>
+    <string name="cat_education">Educación</string>
+    <string name="cat_kids">Hijos</string>
+    <string name="cat_pets">Mascotas</string>
+    <string name="cat_gifts">Regalos</string>
+    <string name="cat_travel">Viajes</string>
+    <string name="cat_subscriptions">Suscripciones</string>
+    <string name="cat_loans">Préstamos</string>
+    <string name="cat_taxes">Impuestos</string>
+    <string name="cat_other">Otros</string>
+    <string name="cat_transfer">Traspaso</string>
+    <string name="cat_unknown">Sin categoría</string>
+
+    <!-- Iconos de grupo -->
+    <string name="group_icon_home">Casa</string>
+    <string name="group_icon_person">Personal</string>
+    <string name="group_icon_couple">Pareja</string>
+    <string name="group_icon_family">Familia</string>
+    <string name="group_icon_friends">Amigos</string>
+    <string name="group_icon_travel">Viaje</string>
+    <string name="group_icon_work">Trabajo</string>
+    <string name="group_icon_savings">Ahorro</string>
+
+    <!-- Navegación -->
+    <string name="nav_home">Inicio</string>
+    <string name="nav_calendar">Calendario</string>
+    <string name="nav_stats">Gráficas</string>
+    <string name="nav_settings">Ajustes</string>
+    <string name="cd_select_group">Cambiar de grupo</string>
+    <string name="cd_group_settings">Ajustes del grupo</string>
+    <string name="cd_add_movement">Añadir movimiento</string>
+    <string name="cd_previous">Anterior</string>
+    <string name="cd_next">Siguiente</string>
+    <string name="cd_has_photo">Tiene foto</string>
+    <string name="cd_selected">Seleccionado</string>
+
+    <!-- Inicio -->
+    <string name="balance_total">Balance Total</string>
+    <string name="recent_transactions">Transacciones Recientes</string>
+    <string name="home_month_income">Ingresos del mes</string>
+    <string name="home_month_expenses">Gastos del mes</string>
+    <string name="home_empty_title">Aún no hay movimientos</string>
+    <string name="home_empty_body">Pulsa + para añadir tu primer gasto o ingreso.</string>
+    <plurals name="movement_count">
+        <item quantity="one">%d movimiento</item>
+        <item quantity="many">%d movimientos</item>
+        <item quantity="other">%d movimientos</item>
+    </plurals>
+
+    <!-- Calendario -->
+    <string name="calendar_title">Calendario</string>
+    <string name="calendar_day_title">Transacciones del día %1$d:</string>
+    <string name="calendar_empty_day">No hay transacciones este día.</string>
+    <string name="calendar_today">Hoy</string>
+
+    <!-- Estadísticas -->
+    <string name="stats_title">Estadísticas</string>
+    <string name="period_month">Mes</string>
+    <string name="period_year">Año</string>
+    <string name="period_all">Todo</string>
+    <string name="stats_income">Ingresos</string>
+    <string name="stats_expenses">Gastos</string>
+    <string name="stats_net">Balance</string>
+    <string name="stats_daily">Evolución día a día</string>
+    <string name="stats_monthly">Evolución mes a mes</string>
+    <string name="stats_last_months">Últimos 12 meses</string>
+    <string name="stats_by_category">Gastos por categoría</string>
+    <string name="stats_income_by_category">Ingresos por categoría</string>
+    <string name="stats_by_member">Por miembro</string>
+    <string name="stats_by_account">Gastos por cuenta</string>
+    <string name="stats_no_data">No hay movimientos en este periodo.</string>
+    <string name="stats_tap_hint">Toca una barra para ver el detalle</string>
+    <string name="stats_savings_rate">Has ahorrado el %1$s de tus ingresos</string>
+    <string name="stats_overspent">Has gastado %1$s más de lo que has ingresado</string>
+    <string name="stats_member_income">Ingresos: %1$s</string>
+    <string name="stats_total">Total</string>
+
+    <!-- Ajustes -->
+    <string name="settings_profile">Perfil</string>
+    <string name="settings_name">Nombre</string>
+    <string name="settings_email">Email</string>
+    <string name="settings_edit_name">Cambiar nombre</string>
+    <string name="settings_name_updated">Nombre actualizado</string>
+    <string name="settings_appearance">Apariencia</string>
+    <string name="theme_system">Sistema</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="settings_data">Datos</string>
+    <string name="settings_export_csv">Exportar movimientos (CSV)</string>
+    <string name="settings_export_csv_desc">Del grupo «%1$s», para abrir en Excel o Google Sheets</string>
+    <string name="settings_app_info">Información de la App</string>
+    <string name="settings_version">Versión: %1$s</string>
+    <string name="settings_mode_cloud">Sincronización en la nube activada</string>
+    <string name="settings_mode_local">Modo local: tus datos se guardan solo en este dispositivo.</string>
+    <string name="privacy_policy_cloud">Política de privacidad: Tus datos se guardan de forma segura en la nube y solo tú y los miembros de tu grupo pueden acceder a ellos.</string>
+    <string name="privacy_policy_local">Política de privacidad: Tus datos se guardan únicamente en este dispositivo y no se envían a ningún servidor.</string>
+    <string name="settings_privacy_link">Ver política de privacidad completa</string>
+    <string name="sign_out">Cerrar sesión</string>
+    <string name="sign_out_title">¿Cerrar sesión?</string>
+    <string name="sign_out_body">Podrás volver a entrar con tu email y contraseña.</string>
+    <string name="delete_account">Eliminar mi cuenta permanentemente</string>
+    <string name="delete_local_data">Borrar todos los datos</string>
+    <string name="delete_account_title">¿Eliminar tu cuenta?</string>
+    <string name="delete_account_body">Se eliminará tu cuenta y saldrás de todos tus grupos. Los grupos en los que seas el único miembro se borrarán con todos sus movimientos. Esta acción no se puede deshacer.</string>
+    <string name="delete_account_password">Contraseña para confirmar</string>
+    <string name="delete_local_title">¿Borrar todos los datos?</string>
+    <string name="delete_local_body">Se borrarán todos tus grupos, movimientos y fotos de este dispositivo. Esta acción no se puede deshacer.</string>
+
+    <!-- Grupos -->
+    <string name="groups_title">Tus Grupos</string>
+    <string name="group_create">Crear grupo nuevo</string>
+    <string name="group_join">Unirse a otro grupo</string>
+    <string name="group_create_title">Nuevo grupo</string>
+    <string name="group_edit_title">Editar grupo</string>
+    <string name="group_name">Nombre del grupo</string>
+    <string name="group_icon">Icono</string>
+    <string name="group_join_title">Unirse a un grupo</string>
+    <string name="group_join_body">Pide el código de invitación a alguien del grupo y escríbelo aquí.</string>
+    <string name="group_code">Código de invitación</string>
+    <string name="group_settings_title">Ajustes: %1$s</string>
+    <string name="group_invite_code">Código para invitar:</string>
+    <string name="group_invite_hint">Comparte este código para que otras personas se unan al grupo.</string>
+    <string name="group_participants">Participantes:</string>
+    <string name="group_you">(tú)</string>
+    <string name="group_leave">Salir del grupo</string>
+    <string name="group_delete">Eliminar grupo</string>
+    <string name="group_edit">Editar nombre e icono</string>
+    <string name="group_leave_title">¿Salir de «%1$s»?</string>
+    <string name="group_leave_body">Dejarás de ver los movimientos de este grupo. Podrás volver a unirte con el código de invitación.</string>
+    <string name="group_leave_last_body">Eres el único miembro: el grupo se eliminará con todos sus movimientos y fotos. Esta acción no se puede deshacer.</string>
+    <string name="group_delete_title">¿Eliminar «%1$s»?</string>
+    <string name="group_delete_body">Se borrarán todos sus movimientos y fotos. Esta acción no se puede deshacer.</string>
+    <string name="group_code_copied">Código copiado</string>
+    <string name="group_share_text">¡Únete a mi grupo «%1$s» en MiGasto para llevar las cuentas juntos! Código de invitación: %2$s</string>
+    <string name="group_joined">Te has unido a «%1$s»</string>
+    <string name="group_created">Grupo «%1$s» creado</string>
+    <string name="group_left">Has salido de «%1$s»</string>
+    <string name="group_deleted">Grupo «%1$s» eliminado</string>
+    <string name="group_join_local">Para compartir grupos con otras personas hace falta la sincronización en la nube. En modo local puedes crear tantos grupos como quieras en este dispositivo.</string>
+    <string name="no_groups_title">Crea tu primer grupo</string>
+    <string name="no_groups_body">Los grupos separan tus cuentas: tu casa, tu pareja, un viaje… Puedes crear uno o unirte al de otra persona con su código.</string>
+    <string name="default_group_name">Casa</string>
+
+    <!-- Movimientos -->
+    <string name="movement_add_title">Añadir Movimiento</string>
+    <string name="movement_edit_title">Editar Movimiento</string>
+    <string name="movement_amount">Cantidad (€)</string>
+    <string name="movement_add_photo">Añadir foto</string>
+    <string name="movement_take_photo">Hacer foto</string>
+    <string name="movement_pick_photo">Elegir de la galería</string>
+    <string name="movement_remove_photo">Quitar foto</string>
+    <string name="movement_description">Descripción</string>
+    <string name="movement_category">Categoría</string>
+    <string name="movement_choose_category">Elige una categoría</string>
+    <string name="movement_date">Fecha</string>
+    <string name="movement_save">Guardar Movimiento</string>
+    <string name="movement_today">Hoy</string>
+    <string name="movement_yesterday">Ayer</string>
+    <string name="movement_saved">Movimiento guardado</string>
+    <string name="movement_updated">Movimiento actualizado</string>
+    <string name="movement_deleted">Movimiento eliminado</string>
+    <string name="movement_delete_title">¿Eliminar este movimiento?</string>
+    <string name="movement_delete_body">Esta acción no se puede deshacer.</string>
+    <string name="movement_created_by">Añadido por</string>
+    <string name="movement_account">Cuenta</string>
+    <string name="movement_type">Tipo</string>
+    <string name="movement_photo">Foto del ticket</string>
+    <string name="movement_no_description">Sin descripción</string>
+
+    <!-- Acceso (modo nube) -->
+    <string name="auth_tagline">Las cuentas de casa, claras y compartidas.</string>
+    <string name="auth_sign_in">Iniciar sesión</string>
+    <string name="auth_register">Crear cuenta</string>
+    <string name="auth_name">Tu nombre</string>
+    <string name="auth_email">Email</string>
+    <string name="auth_password">Contraseña</string>
+    <string name="auth_password_hint">Mínimo 6 caracteres</string>
+    <string name="auth_forgot">¿Has olvidado tu contraseña?</string>
+    <string name="auth_reset_sent">Te hemos enviado un email a %1$s para restablecer tu contraseña.</string>
+    <string name="auth_reset_need_email">Escribe tu email y vuelve a pulsar para recibir el enlace.</string>
+    <string name="auth_show_password">Mostrar contraseña</string>
+    <string name="auth_hide_password">Ocultar contraseña</string>
+    <string name="auth_privacy_notice">Al continuar aceptas la política de privacidad.</string>
+
+    <!-- Bienvenida (modo local) -->
+    <string name="welcome_title">Bienvenido a MiGasto</string>
+    <string name="welcome_body">Apunta gastos, ingresos y facturas, separa banco y efectivo y descubre en qué se va tu dinero.</string>
+    <string name="welcome_name">¿Cómo te llamas?</string>
+    <string name="welcome_group">Nombre de tu primer grupo</string>
+    <string name="welcome_start">Empezar</string>
+    <string name="welcome_local_note">Tus datos se guardan solo en este dispositivo.</string>
+
+    <!-- Exportación -->
+    <string name="export_chooser">Exportar movimientos</string>
+    <string name="export_subject">Movimientos de %1$s</string>
+    <string name="export_empty">No hay movimientos que exportar.</string>
+    <string name="csv_date">Fecha</string>
+    <string name="csv_type">Tipo</string>
+    <string name="csv_category">Categoría</string>
+    <string name="csv_description">Descripción</string>
+    <string name="csv_account">Cuenta</string>
+    <string name="csv_amount">Importe (€)</string>
+    <string name="csv_author">Añadido por</string>
+
+    <!-- Errores -->
+    <string name="error_invalid_code">El código de invitación no es válido.</string>
+    <string name="error_already_member">Ya eres miembro de este grupo.</string>
+    <string name="error_local_mode">Esta función necesita la sincronización en la nube.</string>
+    <string name="error_network">No hay conexión. Inténtalo de nuevo.</string>
+    <string name="error_permission">No tienes permiso para hacer esto.</string>
+    <string name="error_invalid_email">El email no es válido.</string>
+    <string name="error_wrong_credentials">Email o contraseña incorrectos.</string>
+    <string name="error_email_in_use">Ya existe una cuenta con ese email.</string>
+    <string name="error_weak_password">La contraseña debe tener al menos 6 caracteres.</string>
+    <string name="error_too_many">Demasiados intentos. Espera un momento.</string>
+    <string name="error_photo_too_large">La foto es demasiado grande.</string>
+    <string name="error_photo_load">No se pudo cargar la foto.</string>
+    <string name="error_unknown">Ha ocurrido un error. Inténtalo de nuevo.</string>
+    <string name="error_camera_unavailable">No se ha encontrado ninguna app de cámara.</string>
+</resources>

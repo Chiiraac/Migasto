@@ -1,0 +1,111 @@
+rules_version = '2';
+
+// Reglas de seguridad de MiGasto (modo nube).
+// Solo los miembros de un grupo pueden ver y modificar sus datos.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function groupPath(groupId) {
+      return /databases/$(database)/documents/groups/$(groupId);
+    }
+
+    function isMember(groupId) {
+      return signedIn() && uid() in get(groupPath(groupId)).data.memberIds;
+    }
+
+    function validName(name) {
+      return name is string && name.size() > 0 && name.size() <= 60;
+    }
+
+    // ---------- Grupos ----------
+    match /groups/{groupId} {
+      // Las consultas deben filtrar con memberIds array-contains <uid>.
+      allow read: if signedIn() && uid() in resource.data.memberIds;
+
+      allow create: if signedIn()
+        && request.resource.data.ownerId == uid()
+        && request.resource.data.memberIds == [uid()]
+        && request.resource.data.members.keys().hasOnly([uid()])
+        && validName(request.resource.data.name)
+        && request.resource.data.inviteCode is string
+        && request.resource.data.inviteCode.size() == 6
+        && request.resource.data.createdAt is int;
+
+      allow update: if signedIn() && (
+        // Un miembro puede renombrar, cambiar el icono, salir, etc.
+        (
+          uid() in resource.data.memberIds
+          && request.resource.data.inviteCode == resource.data.inviteCode
+          && request.resource.data.createdAt == resource.data.createdAt
+          && validName(request.resource.data.name)
+        )
+        ||
+        // Alguien de fuera solo puede añadirse a sí mismo si conoce el código del grupo.
+        (
+          !(uid() in resource.data.memberIds)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds', 'members', 'joinCode'])
+          && request.resource.data.memberIds == resource.data.memberIds.concat([uid()])
+          && request.resource.data.members.diff(resource.data.members).affectedKeys().hasOnly([uid()])
+          && request.resource.data.joinCode == resource.data.inviteCode
+        )
+      );
+
+      allow delete: if signedIn() && uid() in resource.data.memberIds;
+
+      // ---------- Movimientos ----------
+      match /movements/{movementId} {
+        function validMovement() {
+          let d = request.resource.data;
+          return d.type in ['EXPENSE', 'INCOME', 'BILL', 'TRANSFER']
+            && d.method in ['BANK', 'CASH']
+            && d.amountCents is int && d.amountCents > 0 && d.amountCents <= 999999999
+            && d.description is string && d.description.size() <= 200
+            && d.categoryId is string && d.categoryId.size() > 0 && d.categoryId.size() <= 40
+            && d.dateEpochDay is int
+            && d.createdAt is int
+            && d.createdById is string
+            && d.createdByName is string && d.createdByName.size() <= 80
+            && d.hasPhoto is bool;
+        }
+
+        allow read, delete: if isMember(groupId);
+        allow create: if isMember(groupId) && validMovement() && request.resource.data.createdById == uid();
+        allow update: if isMember(groupId) && validMovement()
+          && request.resource.data.createdById == resource.data.createdById
+          && request.resource.data.createdAt == resource.data.createdAt;
+      }
+
+      // ---------- Fotos de tickets (JPEG comprimido, < 1 MB) ----------
+      match /photos/{photoId} {
+        allow read, delete: if isMember(groupId);
+        allow create, update: if isMember(groupId)
+          && request.resource.data.data is bytes
+          && request.resource.data.data.size() < 1000000;
+      }
+    }
+
+    // ---------- Códigos de invitación ----------
+    match /inviteCodes/{code} {
+      // Se puede leer un código concreto, pero nunca listarlos.
+      allow get: if signedIn();
+      allow list: if false;
+
+      allow create: if signedIn()
+        && request.resource.data.groupId is string
+        && getAfter(groupPath(request.resource.data.groupId)).data.inviteCode == code
+        && uid() in getAfter(groupPath(request.resource.data.groupId)).data.memberIds;
+
+      allow update: if false;
+
+      allow delete: if signedIn() && uid() in get(groupPath(resource.data.groupId)).data.memberIds;
+    }
+  }
+}
