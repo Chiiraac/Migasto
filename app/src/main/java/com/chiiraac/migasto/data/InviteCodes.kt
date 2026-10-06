@@ -14,9 +14,18 @@ object InviteCodes {
             repeat(LENGTH) { append(ALPHABET[random.nextInt(ALPHABET.length)]) }
         }
 
-    /** Normaliza lo que escribe el usuario: mayúsculas y sin espacios ni guiones. */
-    fun normalize(input: String): String =
-        input.uppercase().filter { it.isLetterOrDigit() }.take(LENGTH)
+    private val CODE_IN_TEXT = Regex("(?<![A-Z0-9])[$ALPHABET]{$LENGTH}(?![A-Z0-9])")
+
+    /**
+     * Normaliza lo que escribe el usuario: mayúsculas y sin espacios ni guiones. Si pega el
+     * mensaje completo de invitación ("…Código de invitación: ABC234"), extrae el código.
+     */
+    fun normalize(input: String): String {
+        val upper = input.uppercase()
+        val compact = upper.filter { it.isLetterOrDigit() }
+        if (compact.length <= LENGTH) return compact
+        return CODE_IN_TEXT.findAll(upper).lastOrNull()?.value ?: compact.take(LENGTH)
+    }
 
     fun isValid(code: String): Boolean =
         code.length == LENGTH && code.all { it in ALPHABET }

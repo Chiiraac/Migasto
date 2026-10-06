@@ -27,9 +27,12 @@ object CsvExporter {
 
     fun build(movements: List<Movement>, labels: Labels, locale: Locale = Locale.getDefault()): String {
         val dateFormat = DateTimeFormatter.ISO_LOCAL_DATE
-        val symbols = DecimalFormatSymbols.getInstance(locale)
+        // Dígitos ASCII y signo "-" normal para que Excel los lea como números en cualquier idioma;
+        // del idioma solo se toma si el decimal es "," (y entonces las columnas van con ";").
+        val commaDecimal = DecimalFormatSymbols.getInstance(locale).decimalSeparator == ','
+        val symbols = DecimalFormatSymbols(Locale.ROOT).apply { decimalSeparator = if (commaDecimal) ',' else '.' }
         val amountFormat = DecimalFormat("0.00", symbols)
-        val separator = if (symbols.decimalSeparator == ',') SEPARATOR else ','
+        val separator = if (commaDecimal) SEPARATOR else ','
         val sb = StringBuilder(BOM)
         sb.appendRow(labels.header, separator)
         movements.sortedWith(compareBy<Movement> { it.date }.thenBy { it.createdAt }).forEach { m ->

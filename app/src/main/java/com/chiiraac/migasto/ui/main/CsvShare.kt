@@ -11,6 +11,7 @@ import com.chiiraac.migasto.domain.CsvExporter
 import com.chiiraac.migasto.ui.components.Categories
 import com.chiiraac.migasto.ui.components.label
 import com.chiiraac.migasto.ui.components.transferLabel
+import com.chiiraac.migasto.util.TempFiles
 import java.io.File
 import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +39,7 @@ object CsvShare {
             authorName = authorName,
         )
         val file = withContext(Dispatchers.IO) {
-            val directory = File(context.cacheDir, "exports").apply {
+            val directory = TempFiles.exportsDir(context).apply {
                 deleteRecursively()
                 mkdirs()
             }

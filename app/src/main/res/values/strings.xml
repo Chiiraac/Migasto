@@ -261,5 +261,6 @@
     <string name="error_photo_too_large">La foto es demasiado grande.</string>
     <string name="error_photo_load">No se pudo cargar la foto.</string>
     <string name="error_unknown">Ha ocurrido un error. Inténtalo de nuevo.</string>
+    <string name="error_amount_invalid">Introduce una cantidad válida.</string>
     <string name="error_camera_unavailable">No se ha encontrado ninguna app de cámara.</string>
 </resources>

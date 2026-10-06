@@ -37,6 +37,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -284,8 +285,9 @@ private fun DeleteAccountDialog(
     onConfirm: (password: String?, onResult: (Throwable?) -> Unit) -> Unit,
 ) {
     var password by rememberSaveable { mutableStateOf("") }
-    var working by rememberSaveable { mutableStateOf(false) }
-    var error by rememberSaveable { mutableStateOf<Int?>(null) }
+    // `remember` (no saveable): tras rotar la pantalla el diálogo no se queda bloqueado.
+    var working by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<Int?>(null) }
     AlertDialog(
         onDismissRequest = { if (!working) onDismiss() },
         title = { Text(stringResource(if (isCloud) R.string.delete_account_title else R.string.delete_local_title)) },

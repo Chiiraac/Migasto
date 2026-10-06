@@ -131,16 +131,25 @@ class FirestoreFinanceRepository(
     }
 
     override suspend fun leaveGroup(user: UserProfile, group: Group): Result<Unit> = firestoreCall {
+        leave(user, group, confirmed = false)
+    }
+
+    /**
+     * Sale de [group]; si era el último miembro, lo borra entero. Con [confirmed] cada escritura
+     * espera la confirmación del servidor (se usa al borrar la cuenta, cuando ya no habrá sesión
+     * para enviar después lo que quede pendiente).
+     */
+    private suspend fun leave(user: UserProfile, group: Group, confirmed: Boolean) {
         val remaining = group.members.filter { it.uid != user.uid }
         if (remaining.isEmpty()) {
-            deleteGroupCompletely(group)
+            deleteGroupCompletely(group, confirmed)
         } else {
             val updates = mutableMapOf<String, Any>(
                 F_MEMBER_IDS to FieldValue.arrayRemove(user.uid),
                 "$F_MEMBERS.${user.uid}" to FieldValue.delete(),
             )
             if (group.ownerId == user.uid) updates[F_OWNER_ID] = remaining.first().uid
-            groups.document(group.id).update(updates).awaitOrQueued()
+            groups.document(group.id).update(updates).awaitWrite(confirmed)
         }
     }
 
@@ -221,23 +230,30 @@ class FirestoreFinanceRepository(
         val myGroups = groups.whereArrayContains(F_MEMBER_IDS, user.uid)
             .get(Source.SERVER).await()
             .documents.mapNotNull { it.toGroup() }
-        myGroups.forEach { group -> leaveGroup(user, group).getOrThrow() }
+        myGroups.forEach { group -> leave(user, group, confirmed = true) }
+        // Cualquier otra escritura pendiente de este usuario debe llegar antes de borrar la cuenta.
+        db.waitForPendingWrites().awaitWrite(confirmed = true)
     }
 
     /** Borra movimientos, fotos, código de invitación y el propio grupo. */
-    private suspend fun deleteGroupCompletely(group: Group) {
+    private suspend fun deleteGroupCompletely(group: Group, confirmed: Boolean) {
+        // Lectura del servidor (no de la caché) para no dejar documentos huérfanos. Las fotos
+        // usan el mismo id que su movimiento, así que no hace falta descargarlas para borrarlas.
+        val movementDocs = movementsOf(group.id).get(Source.SERVER).await().documents
         val children = mutableListOf<DocumentReference>()
-        children += movementsOf(group.id).get().await().documents.map { it.reference }
-        children += photosOf(group.id).get().await().documents.map { it.reference }
+        movementDocs.forEach { doc ->
+            children += doc.reference
+            if (doc.getBoolean(F_HAS_PHOTO) == true) children += photosOf(group.id).document(doc.id)
+        }
         children.chunked(BATCH_LIMIT).forEach { chunk ->
             val batch = db.batch()
             chunk.forEach { batch.delete(it) }
-            batch.commit().awaitOrQueued()
+            batch.commit().awaitWrite(confirmed)
         }
         val batch = db.batch()
         if (group.inviteCode.isNotBlank()) batch.delete(inviteCodes.document(group.inviteCode))
         batch.delete(groups.document(group.id))
-        batch.commit().awaitOrQueued()
+        batch.commit().awaitWrite(confirmed)
     }
 
     private fun memberData(user: UserProfile): Map<String, Any?> =
@@ -251,6 +267,7 @@ class FirestoreFinanceRepository(
         const val MAX_PHOTO_BYTES = 900 * 1024
         private const val BATCH_LIMIT = 400
         private const val WRITE_TIMEOUT_MS = 4_000L
+        private const val CONFIRMED_WRITE_TIMEOUT_MS = 30_000L
 
         const val GROUPS = "groups"
         const val MOVEMENTS = "movements"
@@ -284,8 +301,15 @@ class FirestoreFinanceRepository(
          * Espera la confirmación del servidor un tiempo prudencial. Sin conexión, Firestore
          * guarda la escritura en local y la sincroniza después, así que no bloqueamos la interfaz.
          */
+        /** Espera la confirmación del servidor si [confirmed]; si no, como [awaitOrQueued]. */
+        private suspend fun Task<*>.awaitWrite(confirmed: Boolean) {
+            if (!confirmed) return awaitOrQueued()
+            withTimeoutOrNull(CONFIRMED_WRITE_TIMEOUT_MS) { await(); true }
+                ?: throw AppError(AppError.Reason.NETWORK)
+        }
+
         private suspend fun Task<*>.awaitOrQueued() {
-            val finished = withTimeoutOrNull(WRITE_TIMEOUT_MS) { await() }
+            val finished = withTimeoutOrNull(WRITE_TIMEOUT_MS) { await(); true }
             if (finished == null) {
                 addOnFailureListener { Log.w(TAG, "Escritura pendiente rechazada", it) }
             }

@@ -34,15 +34,22 @@ object Money {
         return when {
             abs(euros) >= 1_000_000 -> number.format(euros / 1_000_000) + " M€"
             abs(euros) >= 1_000 -> number.format(euros / 1_000) + " k€"
-            else -> NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 0 }.format(euros) + " €"
+            else -> NumberFormat.getNumberInstance(locale).apply {
+                maximumFractionDigits = if (cents % 100 == 0L) 0 else 2
+                roundingMode = java.math.RoundingMode.HALF_UP
+            }.format(BigDecimal.valueOf(cents, 2)) + " €"
         }
     }
 
     /**
      * Convierte lo que escribe el usuario ("12", "12,5", "12.50", "1.234,56") en céntimos.
      * Devuelve null si no es un importe válido.
+     *
+     * Si tras el último separador hay exactamente tres cifras, se decide con el idioma del
+     * móvil: en español "1.500" son mil quinientos y "12,505" no es válido (tres decimales);
+     * en inglés es al revés ("1,500" son miles).
      */
-    fun parseToCents(input: String): Long? {
+    fun parseToCents(input: String, locale: Locale = Locale.getDefault()): Long? {
         val cleaned = input.trim().replace(" ", "").replace("€", "")
         if (cleaned.isEmpty()) return null
         if (!cleaned.all { it.isDigit() || it == ',' || it == '.' }) return null
@@ -54,7 +61,7 @@ object Money {
             if (decimals.length in 1..2 || (decimals.isEmpty() && integers.isNotEmpty())) {
                 // El último separador es el decimal; el resto son separadores de miles.
                 integers.filter { it.isDigit() } to decimals
-            } else if (decimals.length == 3 && integers.isNotEmpty()) {
+            } else if (decimals.length == 3 && integers.isNotEmpty() && cleaned[lastSeparator] != decimalSeparator(locale)) {
                 // "1.234" → separador de miles
                 (integers + decimals).filter { it.isDigit() } to ""
             } else {
@@ -71,9 +78,14 @@ object Money {
         return total.takeIf { it in 0..MAX_CENTS }
     }
 
+    /** Separador decimal del idioma, reducido a "," o ".". */
+    private fun decimalSeparator(locale: Locale): Char =
+        if (java.text.DecimalFormatSymbols.getInstance(locale).decimalSeparator == ',') ',' else '.'
+
     /** Texto para rellenar el campo de importe al editar: 1250 → "12,50". */
     fun toInput(cents: Long, locale: Locale = Locale.getDefault()): String {
-        val separator = java.text.DecimalFormatSymbols.getInstance(locale).decimalSeparator
+        // Solo "," o "." (los únicos que acepta parseToCents), aunque el idioma use otro (p. ej. árabe).
+        val separator = decimalSeparator(locale)
         val euros = cents / 100
         val rest = cents % 100
         return if (rest == 0L) euros.toString() else "$euros$separator${rest.toString().padStart(2, '0')}"

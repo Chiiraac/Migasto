@@ -24,9 +24,12 @@ import com.chiiraac.migasto.data.repository.AuthState
 import com.chiiraac.migasto.data.repository.FinanceRepository
 import com.chiiraac.migasto.ui.components.messageRes
 import com.chiiraac.migasto.util.PhotoProcessor
+import com.chiiraac.migasto.util.TempFiles
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -37,6 +40,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -49,6 +53,8 @@ data class MainUiState(
     val movements: List<Movement> = emptyList(),
     val movementsLoaded: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    /** Último editor (por su identificador) cuyo movimiento se guardó: la pantalla lo cierra. */
+    val savedEditorToken: Int? = null,
 ) {
     /** Nombre a mostrar del autor de un movimiento (actualizado si cambió su nombre). */
     fun authorName(movement: Movement): String =
@@ -76,46 +82,57 @@ class MainViewModel(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.Eagerly, (auth.authState.value as? AuthState.SignedIn)?.user)
 
-    private val groups: Flow<List<Group>?> = user.flatMapLatest { profile ->
+    // Todos los flujos son "calientes" mientras viva el ViewModel: al volver de segundo plano
+    // no se pierde el estado cargado (antes se reiniciaba y podía cerrar el editor abierto).
+    private val groups: StateFlow<List<Group>?> = user.flatMapLatest { profile ->
         if (profile == null) {
             flowOf(null)
         } else {
             finance.observeGroups(profile)
+                .retryWithBackoff()
                 .map<List<Group>, List<Group>?> { it }
                 .onStart { emit(null) }
                 .catch { emit(emptyList()) }
         }
-    }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val selectedGroupId: Flow<String?> = user.flatMapLatest { profile ->
         if (profile == null) flowOf(null) else preferences.selectedGroupId(profile.uid)
     }
 
-    private val selectedGroup: Flow<Group?> = combine(groups, selectedGroupId) { list, id ->
+    private val selectedGroup: StateFlow<Group?> = combine(groups, selectedGroupId) { list, id ->
         list?.firstOrNull { it.id == id } ?: list?.firstOrNull()
-    }.distinctUntilChanged()
+    }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    private val movements: Flow<List<Movement>?> = selectedGroup
+    private val movements: StateFlow<List<Movement>?> = selectedGroup
         .map { it?.id }
         .distinctUntilChanged()
         .flatMapLatest { groupId ->
             if (groupId == null) {
                 flowOf(emptyList())
             } else {
+                // En modo nube, un grupo recién creado puede no existir aún en el servidor cuando
+                // empieza la escucha (las reglas la rechazan): se reintenta en lugar de quedarse vacía.
                 finance.observeMovements(groupId)
+                    .retryWithBackoff()
                     .map<List<Movement>, List<Movement>?> { it }
                     .onStart { emit(null) }
                     .catch { emit(emptyList()) }
             }
         }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private val savedEditorToken = MutableStateFlow<Int?>(null)
+
+    private val themeAndToken = combine(preferences.themeMode, savedEditorToken) { theme, token -> theme to token }
 
     val uiState: StateFlow<MainUiState> = combine(
         user,
         groups,
         selectedGroup,
         movements,
-        preferences.themeMode,
-    ) { profile, groupList, selected, movementList, theme ->
+        themeAndToken,
+    ) { profile, groupList, selected, movementList, (theme, token) ->
         MainUiState(
             user = profile,
             isCloud = isCloud,
@@ -125,8 +142,9 @@ class MainViewModel(
             movements = movementList.orEmpty(),
             movementsLoaded = movementList != null,
             themeMode = theme,
+            savedEditorToken = token,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MainUiState(isCloud = isCloud))
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, MainUiState(isCloud = isCloud))
 
     private fun currentUser(): UserProfile? = user.value
 
@@ -191,6 +209,7 @@ class MainViewModel(
      * [removePhoto] indica que se quiere quitar la foto existente.
      */
     fun saveMovement(
+        editorToken: Int,
         movementId: String?,
         draft: MovementDraft,
         newPhoto: Uri?,
@@ -203,6 +222,7 @@ class MainViewModel(
             val photoChange: PhotoChange = when {
                 newPhoto != null -> {
                     val bytes = runCatching { PhotoProcessor.compress(application, newPhoto) }.getOrNull()
+                    TempFiles.deleteCameraCapture(application, newPhoto)
                     if (bytes == null) {
                         post(R.string.error_photo_load)
                         onDone(false)
@@ -216,6 +236,9 @@ class MainViewModel(
             finance.saveMovement(profile, groupId, movementId, draft, photoChange)
                 .onSuccess {
                     post(if (movementId == null) R.string.movement_saved else R.string.movement_updated)
+                    // Se guarda en el estado del ViewModel para cerrar el editor aunque la
+                    // actividad se haya recreado (p. ej. al girar la pantalla) mientras se guardaba.
+                    savedEditorToken.value = editorToken
                     onDone(true)
                 }
                 .onFailure {
@@ -255,7 +278,10 @@ class MainViewModel(
     }
 
     fun signOut() {
-        viewModelScope.launch { auth.signOut() }
+        viewModelScope.launch {
+            TempFiles.clearAll(application)
+            auth.signOut()
+        }
     }
 
     /** Borra la cuenta (modo nube) o todos los datos del dispositivo (modo local). */
@@ -268,6 +294,7 @@ class MainViewModel(
                     auth.reauthenticate(password).getOrThrow()
                 }
                 finance.purgeUser(profile).getOrThrow()
+                TempFiles.clearAll(application)
                 auth.deleteAccount().getOrThrow()
                 preferences.clearAccountData()
             }
@@ -276,6 +303,18 @@ class MainViewModel(
     }
 
     companion object {
+        private const val MAX_LISTEN_RETRIES = 6
+
+        /** Reintenta una escucha fallida (500 ms, 1 s, 2 s… ~30 s en total) antes de rendirse. */
+        private fun <T> Flow<T>.retryWithBackoff(): Flow<T> = retryWhen { _, attempt ->
+            if (attempt < MAX_LISTEN_RETRIES) {
+                delay(500L shl attempt.toInt())
+                true
+            } else {
+                false
+            }
+        }
+
         fun factory(application: Application): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val container = (application as MiGastoApplication).container

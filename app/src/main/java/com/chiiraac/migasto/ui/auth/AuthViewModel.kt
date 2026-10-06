@@ -66,7 +66,12 @@ class AuthViewModel(
                 auth.signIn(current.email, current.password)
             }
             // Si va bien, el cambio de sesión lleva a la pantalla principal automáticamente.
-            state.update { it.copy(loading = false, error = result.exceptionOrNull()?.messageRes()) }
+            // El formulario se vacía para que, al cerrar sesión, no queden el email ni la contraseña.
+            if (result.isSuccess) {
+                state.value = AuthUiState(groupName = defaultGroupName)
+            } else {
+                state.update { it.copy(loading = false, error = result.exceptionOrNull()?.messageRes()) }
+            }
         }
     }
 
@@ -99,7 +104,11 @@ class AuthViewModel(
             val provisional = UserProfile(UUID.randomUUID().toString(), current.name.trim(), null)
             val result = finance.createGroup(provisional, groupName, GroupIcon.HOME)
                 .mapCatching { auth.startLocal(current.name).getOrThrow() }
-            state.update { it.copy(loading = false, error = result.exceptionOrNull()?.messageRes()) }
+            if (result.isSuccess) {
+                state.value = AuthUiState(groupName = defaultGroupName)
+            } else {
+                state.update { it.copy(loading = false, error = result.exceptionOrNull()?.messageRes()) }
+            }
         }
     }
 

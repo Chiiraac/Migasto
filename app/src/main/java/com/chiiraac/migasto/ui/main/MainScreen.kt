@@ -19,7 +19,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,6 +56,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +69,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -104,7 +113,7 @@ class MainActions(
     val joinGroup: (String, (Throwable?) -> Unit) -> Unit = { _, _ -> },
     val leaveGroup: (Group) -> Unit = {},
     val updateGroup: (Group, String, GroupIcon) -> Unit = { _, _, _ -> },
-    val saveMovement: (String?, MovementDraft, Uri?, Boolean, (Boolean) -> Unit) -> Unit = { _, _, _, _, _ -> },
+    val saveMovement: (Int, String?, MovementDraft, Uri?, Boolean, (Boolean) -> Unit) -> Unit = { _, _, _, _, _, _ -> },
     val deleteMovement: (Movement) -> Unit = {},
     val loadPhoto: suspend (Movement) -> ByteArray? = { null },
     val setTheme: (ThemeMode) -> Unit = {},
@@ -178,6 +187,8 @@ fun MainScreen(
     var showJoin by rememberSaveable { mutableStateOf(false) }
     var leaveGroupId by rememberSaveable { mutableStateOf<String?>(null) }
     var editorOpen by rememberSaveable { mutableStateOf(false) }
+    // Identifica cada apertura del editor: un guardado lento no debe cerrar otro editor nuevo.
+    var editorToken by rememberSaveable { mutableIntStateOf(0) }
     var editorMovementId by rememberSaveable { mutableStateOf<String?>(null) }
     var editorDay by rememberSaveable { mutableLongStateOf(todayDate.toEpochDay()) }
     var detailId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -190,7 +201,12 @@ fun MainScreen(
     fun openNewMovement() {
         editorMovementId = null
         editorDay = if (tab == MainTab.CALENDAR) calendarDay else todayDate.toEpochDay()
+        editorToken++
         editorOpen = true
+    }
+
+    LaunchedEffect(state.savedEditorToken) {
+        if (state.savedEditorToken == editorToken) editorOpen = false
     }
 
     Scaffold(
@@ -237,6 +253,11 @@ fun MainScreen(
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         val contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding())
+        val layoutDirection = LocalLayoutDirection.current
+        val sidePadding = Modifier.padding(
+            start = padding.calculateStartPadding(layoutDirection),
+            end = padding.calculateEndPadding(layoutDirection),
+        )
         when {
             !state.groupsLoaded && tab != MainTab.SETTINGS -> Box(
                 Modifier
@@ -256,7 +277,7 @@ fun MainScreen(
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
                 label = "tab",
                 // En tablets y en horizontal el contenido no se estira más de 720 dp.
-                modifier = Modifier
+                modifier = sidePadding
                     .fillMaxSize()
                     .wrapContentWidth(Alignment.CenterHorizontally)
                     .widthIn(max = 720.dp),
@@ -384,6 +405,7 @@ fun MainScreen(
                 detailId = null
                 editorMovementId = detail.id
                 editorDay = detail.date.toEpochDay()
+                editorToken++
                 editorOpen = true
             },
             onDelete = {
@@ -396,15 +418,18 @@ fun MainScreen(
 
     if (editorOpen && group != null) {
         val existing = editorMovementId?.let { id -> state.movements.firstOrNull { it.id == id } }
-        MovementEditorSheet(
-            existing = existing,
-            initialDate = LocalDate.ofEpochDay(editorDay),
-            loadPhoto = actions.loadPhoto,
-            onSave = { draft, photo, removePhoto, onDone ->
-                actions.saveMovement(existing?.id, draft, photo, removePhoto, onDone)
-            },
-            onDismiss = { editorOpen = false },
-        )
+        val token = editorToken
+        key(token) {
+            MovementEditorSheet(
+                existing = existing,
+                initialDate = LocalDate.ofEpochDay(editorDay),
+                loadPhoto = actions.loadPhoto,
+                onSave = { draft, photo, removePhoto, onDone ->
+                    actions.saveMovement(token, existing?.id, draft, photo, removePhoto, onDone)
+                },
+                onDismiss = { if (editorToken == token) editorOpen = false },
+            )
+        }
     }
 }
 
@@ -414,7 +439,7 @@ private fun MainTopBar(group: Group?, onGroupClick: () -> Unit, onSettingsClick:
         Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
             .height(76.dp)
             .padding(horizontal = 12.dp),
     ) {

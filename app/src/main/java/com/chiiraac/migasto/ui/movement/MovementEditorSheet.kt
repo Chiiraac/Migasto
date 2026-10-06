@@ -34,6 +34,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.BrokenImage
 import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.PhotoCamera
@@ -62,6 +63,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -85,6 +87,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import coil3.compose.AsyncImage
 import com.chiiraac.migasto.R
 import com.chiiraac.migasto.data.model.Movement
@@ -99,10 +102,12 @@ import com.chiiraac.migasto.ui.components.color
 import com.chiiraac.migasto.ui.components.label
 import com.chiiraac.migasto.ui.components.today
 import com.chiiraac.migasto.ui.components.transferLabel
+import com.chiiraac.migasto.util.TempFiles
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import kotlinx.coroutines.launch
 
 /**
  * Hoja "Añadir Movimiento" / "Editar Movimiento".
@@ -152,14 +157,30 @@ fun MovementEditorContent(
     var newPhoto by rememberSaveable { mutableStateOf<String?>(null) }
     var removeExisting by rememberSaveable { mutableStateOf(false) }
     var pendingCameraUri by rememberSaveable { mutableStateOf<String?>(null) }
-    var saving by rememberSaveable { mutableStateOf(false) }
+    // No se guarda en el Bundle: tras rotar la pantalla el formulario debe quedar utilizable.
+    var saving by remember { mutableStateOf(false) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     var showCategoryPicker by rememberSaveable { mutableStateOf(false) }
     var showPhotoMenu by remember { mutableStateOf(false) }
     var existingPhoto by remember { mutableStateOf<ByteArray?>(null) }
+    var existingPhotoLoading by remember { mutableStateOf(existing?.hasPhoto == true) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(existing?.id) {
-        if (existing?.hasPhoto == true) existingPhoto = loadPhoto(existing)
+        if (existing?.hasPhoto == true) {
+            existingPhotoLoading = true
+            existingPhoto = loadPhoto(existing)
+            existingPhotoLoading = false
+        }
+    }
+
+    /** Cambia la foto nueva y borra la captura de cámara que se descarta. */
+    fun replaceNewPhoto(value: String?) {
+        val previous = newPhoto
+        newPhoto = value
+        if (previous != null && previous != value) {
+            scope.launch { TempFiles.deleteCameraCapture(context, previous.toUri()) }
+        }
     }
 
     val date = LocalDate.ofEpochDay(epochDay)
@@ -168,15 +189,18 @@ fun MovementEditorContent(
     val canSave = !saving && amountCents != null && amountCents > 0 && effectiveCategory != null
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success && pendingCameraUri != null) {
-            newPhoto = pendingCameraUri
+        val captured = pendingCameraUri
+        if (success && captured != null) {
+            replaceNewPhoto(captured)
             removeExisting = false
+        } else if (captured != null) {
+            scope.launch { TempFiles.deleteCameraCapture(context, captured.toUri()) }
         }
         pendingCameraUri = null
     }
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
-            newPhoto = uri.toString()
+            replaceNewPhoto(uri.toString())
             removeExisting = false
         }
     }
@@ -224,11 +248,23 @@ fun MovementEditorContent(
         }
 
         // Cantidad + foto
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+            val amountInvalid = amountText.isNotBlank() && (amountCents == null || amountCents == 0L)
             OutlinedTextField(
                 value = amountText,
                 onValueChange = { amountText = sanitizeAmount(it) },
                 label = { Text(stringResource(R.string.movement_amount)) },
+                // Muestra cómo se ha interpretado el importe (p. ej. "1.500" → 1.500,00 €).
+                supportingText = when {
+                    amountInvalid -> {
+                        { Text(stringResource(R.string.error_amount_invalid)) }
+                    }
+                    amountCents != null && amountCents > 0 -> {
+                        { Text(Money.format(amountCents), maxLines = 1) }
+                    }
+                    else -> null
+                },
+                isError = amountInvalid,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
                 textStyle = MaterialTheme.typography.titleLarge,
@@ -241,9 +277,10 @@ fun MovementEditorContent(
                 if (hasPhoto) {
                     PhotoThumbnail(
                         model = photoModel,
+                        loading = newPhoto == null && existingPhotoLoading,
                         onClick = { showPhotoMenu = true },
                         onRemove = {
-                            newPhoto = null
+                            replaceNewPhoto(null)
                             removeExisting = existing?.hasPhoto == true
                         },
                     )
@@ -406,33 +443,17 @@ fun MovementEditorContent(
     }
 }
 
-/** Solo dígitos y un separador decimal con dos decimales como máximo. */
-internal fun sanitizeAmount(input: String): String {
-    val result = StringBuilder()
-    var separatorSeen = false
-    var decimals = 0
-    var integers = 0
-    for (c in input) {
-        when {
-            c.isDigit() && !separatorSeen && integers < 7 -> {
-                result.append(c)
-                integers++
-            }
-            c.isDigit() && separatorSeen && decimals < 2 -> {
-                result.append(c)
-                decimals++
-            }
-            (c == ',' || c == '.') && !separatorSeen -> {
-                result.append(c)
-                separatorSeen = true
-            }
-        }
-    }
-    return result.toString()
-}
+/**
+ * Deja solo dígitos y separadores ("," o "."), sin reinterpretarlos mientras se escribe:
+ * así "1.500" llega entero a [Money.parseToCents], que distingue miles de decimales.
+ */
+internal fun sanitizeAmount(input: String): String =
+    input.filter { it.isDigit() || it == ',' || it == '.' }.take(MAX_AMOUNT_LENGTH)
+
+private const val MAX_AMOUNT_LENGTH = 14
 
 private fun createCameraUri(context: Context): Uri {
-    val directory = File(context.cacheDir, "camera").apply { mkdirs() }
+    val directory = TempFiles.cameraDir(context).apply { mkdirs() }
     val file = File(directory, "ticket_${System.currentTimeMillis()}.jpg")
     return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 }
@@ -507,7 +528,7 @@ private fun PickerField(
 }
 
 @Composable
-private fun PhotoThumbnail(model: Any?, onClick: () -> Unit, onRemove: () -> Unit) {
+private fun PhotoThumbnail(model: Any?, loading: Boolean, onClick: () -> Unit, onRemove: () -> Unit) {
     Box(
         Modifier
             .fillMaxWidth()
@@ -523,8 +544,15 @@ private fun PhotoThumbnail(model: Any?, onClick: () -> Unit, onRemove: () -> Uni
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
-        } else {
+        } else if (loading) {
             CircularProgressIndicator(Modifier.align(Alignment.Center).size(20.dp), strokeWidth = 2.dp)
+        } else {
+            Icon(
+                Icons.Rounded.BrokenImage,
+                contentDescription = stringResource(R.string.error_photo_load),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.Center),
+            )
         }
         Box(
             Modifier

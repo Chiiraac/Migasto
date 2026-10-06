@@ -49,6 +49,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -259,8 +260,10 @@ fun JoinGroupDialog(
         return
     }
     var code by rememberSaveable { mutableStateOf("") }
-    var working by rememberSaveable { mutableStateOf(false) }
-    var error by rememberSaveable { mutableStateOf<Int?>(null) }
+    // `remember` (no saveable): si se recrea la actividad a mitad de la petición, el diálogo
+    // vuelve a quedar utilizable en lugar de mostrar un indicador de carga para siempre.
+    var working by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<Int?>(null) }
     val submit = {
         working = true
         error = null

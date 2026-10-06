@@ -32,6 +32,15 @@ class CsvExporterTest {
     }
 
     @Test
+    fun `amounts use ascii digits and minus sign in any locale`() {
+        val movements = listOf(TestData.movement("Pan", 250, MovementType.EXPENSE, "groceries", LocalDate.of(2026, 10, 2)))
+        val finnish = CsvExporter.build(movements, labels, Locale.forLanguageTag("fi-FI"))
+        assertTrue(finnish, finnish.contains(";-2,50;"))
+        val english = CsvExporter.build(movements, labels, Locale.US)
+        assertTrue(english, english.contains(",-2.50,"))
+    }
+
+    @Test
     fun `escapes quotes`() {
         assertEquals("\"Dice \"\"hola\"\"\"", CsvExporter.escape("Dice \"hola\""))
         assertEquals("-12,50", CsvExporter.escape("-12,50"))

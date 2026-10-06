@@ -22,4 +22,12 @@ class InviteCodesTest {
         assertEquals("AB2CD3", InviteCodes.normalize(" ab2-cd3 "))
         assertEquals("ABCDEF", InviteCodes.normalize("abcdefgh"))
     }
+
+    @Test
+    fun `extracts the code from a pasted invitation message`() {
+        val es = "¡Únete a mi grupo «Casa» en MiGasto para llevar las cuentas juntos! Código de invitación: F9KB38"
+        val en = "Join my “Home” group on MiGasto to keep track of our expenses together! Invite code: F9KB38"
+        assertEquals("F9KB38", InviteCodes.normalize(es))
+        assertEquals("F9KB38", InviteCodes.normalize(en))
+    }
 }
