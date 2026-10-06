@@ -13,6 +13,27 @@ if (hasFirebaseConfig) {
     apply(plugin = "com.google.gms.google-services")
 }
 
+// Inicio de sesión con Google: necesita el "ID de cliente web" (client_type 3) que Firebase añade
+// a google-services.json al activar el proveedor Google y registrar la huella SHA-1 de la app.
+// Si no está, el botón "Continuar con Google" no aparece. Se puede forzar con -Pmigasto.googleWebClientId=...
+val googleWebClientId: String = providers.gradleProperty("migasto.googleWebClientId").orNull
+    ?: providers.fileContents(layout.projectDirectory.file("google-services.json")).asText.orNull
+        ?.let { text ->
+            @Suppress("UNCHECKED_CAST")
+            val json = groovy.json.JsonSlurper().parseText(text) as Map<String, Any?>
+            val client = (json["client"] as? List<Map<String, Any?>>).orEmpty().firstOrNull {
+                val info = it["client_info"] as? Map<String, Any?>
+                val android = info?.get("android_client_info") as? Map<String, Any?>
+                android?.get("package_name") == "com.chiiraac.migasto"
+            }
+            val services = client?.get("services") as? Map<String, Any?>
+            val appInvite = services?.get("appinvite_service") as? Map<String, Any?>
+            val oauthClients = (client?.get("oauth_client") as? List<Map<String, Any?>>).orEmpty() +
+                (appInvite?.get("other_platform_oauth_client") as? List<Map<String, Any?>>).orEmpty()
+            oauthClients.firstOrNull { it["client_type"]?.toString() == "3" }?.get("client_id")?.toString()
+        }
+    ?: ""
+
 // Firma de release: keystore.properties en la raíz o variables de entorno (CI).
 val keystoreProperties = Properties().apply {
     val file = rootProject.file("keystore.properties")
@@ -43,6 +64,7 @@ android {
             "SHOW_BIZUM",
             (project.findProperty("migasto.bizum")?.toString() ?: "true").toBoolean().toString(),
         )
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
     }
 
     signingConfigs {
@@ -141,6 +163,9 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

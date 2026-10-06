@@ -129,12 +129,17 @@
     <string name="settings_privacy_link">Read the full privacy policy</string>
     <string name="sign_out">Sign out</string>
     <string name="sign_out_title">Sign out?</string>
-    <string name="sign_out_body">You can sign back in with your email and password.</string>
+    <string name="sign_out_body">You can sign back in with your account at any time.</string>
+    <string name="sign_out_syncing">Sending your latest changes…</string>
+    <string name="sign_out_pending_title">Some changes aren\'t synced yet</string>
+    <string name="sign_out_pending_body">Some changes haven\'t reached the cloud yet (you may be offline). If you sign out now, they will only be sent when you sign back in with this account on this phone.</string>
+    <string name="sign_out_anyway">Sign out anyway</string>
     <string name="delete_account">Delete my account permanently</string>
     <string name="delete_local_data">Delete all data</string>
     <string name="delete_account_title">Delete your account?</string>
     <string name="delete_account_body">Your account will be deleted and you will leave all your groups. Groups where you are the only member will be deleted with all their transactions. This cannot be undone.</string>
     <string name="delete_account_password">Password to confirm</string>
+    <string name="delete_account_google_hint">To confirm, choose your Google account in the next step.</string>
     <string name="delete_local_title">Delete all data?</string>
     <string name="delete_local_body">All your groups, transactions and photos on this device will be deleted. This cannot be undone.</string>
 
@@ -205,11 +210,13 @@
     <string name="auth_password">Password</string>
     <string name="auth_password_hint">At least 6 characters</string>
     <string name="auth_forgot">Forgot your password?</string>
-    <string name="auth_reset_sent">We sent an email to %1$s to reset your password.</string>
+    <string name="auth_reset_sent">If %1$s has an account, you will receive an email to reset your password. Check the spelling and look in your spam folder too.</string>
     <string name="auth_reset_need_email">Type your email and tap again to receive the link.</string>
     <string name="auth_show_password">Show password</string>
     <string name="auth_hide_password">Hide password</string>
     <string name="auth_privacy_notice">By continuing you accept the privacy policy.</string>
+    <string name="auth_continue_google">Continue with Google</string>
+    <string name="auth_or_email">or with your email</string>
 
     <string name="welcome_title">Welcome to MiGasto</string>
     <string name="welcome_body">Track expenses, income and bills, keep bank and cash apart, and see where your money goes.</string>
@@ -239,9 +246,18 @@
     <string name="error_email_in_use">An account with that email already exists.</string>
     <string name="error_weak_password">The password must be at least 6 characters long.</string>
     <string name="error_too_many">Too many attempts. Please wait a moment.</string>
+    <string name="error_auth_not_configured">Email sign-in isn\'t available right now. Please try again later.</string>
+    <string name="error_account_disabled">This account has been disabled.</string>
     <string name="error_photo_too_large">The photo is too large.</string>
     <string name="error_photo_load">The photo could not be loaded.</string>
     <string name="error_unknown">Something went wrong. Please try again.</string>
+    <string name="error_cancelled">Cancelled.</string>
+    <string name="error_google_failed">Couldn\'t sign in with Google. Please try again.</string>
+    <string name="error_google_no_account">There\'s no Google account on this phone. Add one in system settings or sign in with your email.</string>
+    <string name="error_google_unavailable">Google sign-in isn\'t available on this phone. Sign in with your email and password.</string>
+    <string name="error_google_not_configured">Google sign-in isn\'t available in this version of the app. Sign in with your email and password.</string>
+    <string name="error_google_mismatch">Choose the same Google account you signed in with.</string>
+    <string name="error_account_exists_password">You already have an account with that email. Sign in with your email and password.</string>
     <string name="error_amount_invalid">Enter a valid amount.</string>
     <string name="error_camera_unavailable">No camera app was found.</string>
 

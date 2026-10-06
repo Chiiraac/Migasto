@@ -15,6 +15,14 @@ sealed interface AuthState {
     data class SignedIn(val user: UserProfile) : AuthState
 }
 
+/** Prueba de identidad para operaciones sensibles (borrar la cuenta). */
+sealed interface Reauth {
+    data class Password(val password: String) : Reauth
+
+    /** Token de Google recién obtenido con Credential Manager. */
+    data class Google(val idToken: String) : Reauth
+}
+
 /**
  * Sesión del usuario. En modo nube usa Firebase Authentication; en modo local
  * simplemente guarda un perfil en el dispositivo.
@@ -27,6 +35,9 @@ interface AuthRepository {
 
     suspend fun signIn(email: String, password: String): Result<Unit>
 
+    /** Entra (o crea la cuenta) con el token de Google obtenido con Credential Manager. */
+    suspend fun signInWithGoogle(idToken: String): Result<Unit>
+
     suspend fun register(name: String, email: String, password: String): Result<Unit>
 
     suspend fun sendPasswordReset(email: String): Result<Unit>
@@ -34,7 +45,7 @@ interface AuthRepository {
     suspend fun updateName(name: String): Result<UserProfile>
 
     /** Confirma la identidad antes de operaciones sensibles (borrar cuenta). */
-    suspend fun reauthenticate(password: String): Result<Unit>
+    suspend fun reauthenticate(proof: Reauth): Result<Unit>
 
     suspend fun signOut()
 
@@ -74,4 +85,10 @@ interface FinanceRepository {
 
     /** Sale de todos los grupos (borrando los que se queden vacíos). */
     suspend fun purgeUser(user: UserProfile): Result<Unit>
+
+    /**
+     * Espera (como mucho [timeoutMs]) a que los cambios guardados sin conexión lleguen al servidor.
+     * Devuelve false si aún queda algo pendiente. En modo local no hay nada que enviar.
+     */
+    suspend fun flushPendingWrites(timeoutMs: Long): Boolean = true
 }

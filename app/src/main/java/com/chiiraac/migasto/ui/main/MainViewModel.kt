@@ -22,6 +22,8 @@ import com.chiiraac.migasto.data.prefs.UserPreferences
 import com.chiiraac.migasto.data.repository.AuthRepository
 import com.chiiraac.migasto.data.repository.AuthState
 import com.chiiraac.migasto.data.repository.FinanceRepository
+import com.chiiraac.migasto.data.repository.Reauth
+import com.chiiraac.migasto.ui.auth.GoogleSignIn
 import com.chiiraac.migasto.ui.components.messageRes
 import com.chiiraac.migasto.util.PhotoProcessor
 import com.chiiraac.migasto.util.TempFiles
@@ -296,26 +298,42 @@ class MainViewModel(
         }
     }
 
-    fun signOut() {
+    /**
+     * Cierra la sesión. Antes espera a que lleguen al servidor los cambios guardados sin conexión:
+     * si no llegan a tiempo y no se pide [force], avisa con [onPendingChanges] y no cierra la sesión
+     * (lo que quede en cola solo se enviaría al volver a entrar con esta cuenta en este móvil).
+     */
+    fun signOut(force: Boolean = false, onPendingChanges: () -> Unit = {}) {
         viewModelScope.launch {
+            if (isCloud && !force && !finance.flushPendingWrites(SIGN_OUT_FLUSH_MS)) {
+                onPendingChanges()
+                return@launch
+            }
             TempFiles.clearAll(application)
+            if (isCloud) GoogleSignIn.clearSession(application)
             auth.signOut()
         }
     }
 
-    /** Borra la cuenta (modo nube) o todos los datos del dispositivo (modo local). */
-    fun deleteAccount(password: String?, onResult: (Throwable?) -> Unit) {
+    /**
+     * Borra la cuenta (modo nube) o todos los datos del dispositivo (modo local).
+     * En modo nube [proof] confirma la identidad: contraseña o cuenta de Google.
+     */
+    fun deleteAccount(proof: Reauth?, onResult: (Throwable?) -> Unit) {
         val profile = currentUser() ?: return
         viewModelScope.launch {
             val result = runCatching {
                 if (isCloud) {
-                    if (password.isNullOrEmpty()) throw AppError(AppError.Reason.WRONG_CREDENTIALS)
-                    auth.reauthenticate(password).getOrThrow()
+                    if (proof == null || (proof is Reauth.Password && proof.password.isEmpty())) {
+                        throw AppError(AppError.Reason.WRONG_CREDENTIALS)
+                    }
+                    auth.reauthenticate(proof).getOrThrow()
                 }
                 finance.purgeUser(profile).getOrThrow()
                 TempFiles.clearAll(application)
                 auth.deleteAccount().getOrThrow()
                 preferences.clearAccountData()
+                if (isCloud) GoogleSignIn.clearSession(application)
             }
             onResult(result.exceptionOrNull())
         }
@@ -324,6 +342,7 @@ class MainViewModel(
     companion object {
         private const val MAX_LISTEN_RETRIES = 6
         private const val MAX_SAVED_TOKENS = 20
+        private const val SIGN_OUT_FLUSH_MS = 10_000L
 
         /** Reintenta una escucha fallida (500 ms, 1 s, 2 s… ~30 s en total) antes de rendirse. */
         private fun <T> Flow<T>.retryWithBackoff(): Flow<T> = retryWhen { _, attempt ->

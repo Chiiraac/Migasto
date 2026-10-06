@@ -41,6 +41,15 @@ Solo falta activar **Authentication → Correo electrónico/contraseña** desde 
 2. Pestaña **Sign-in method** → **Correo electrónico/contraseña** → **Habilitar** → Guardar.
 3. (Recomendado) Pestaña **Plantillas** → cambia el idioma a **Español** para que el email de «restablecer contraseña» llegue en español.
 
+### Inicio de sesión con Google (opcional, recomendado)
+1. **Authentication → Sign-in method → Agregar proveedor nuevo → Google → Habilitar**. Elige el *correo de asistencia* y pulsa Guardar.
+2. ⚙️ **Configuración del proyecto → General → Tus apps → MiGasto → Agregar huella digital**. Añade la **SHA-1** (y si quieres la SHA-256) del certificado con el que se firma la app:
+   - Clave de subida (el APK que instalas tú): `keytool -list -v -keystore release-output/migasto-upload.jks -alias migasto` (o mira `CLAVES-FIRMA.txt`).
+   - Cuando publiques en Google Play, añade también la de **Play App Signing**: *Play Console → tu app → Prueba y lanzamiento → Configuración → Integridad de la app → Firma de apps* → «Huella digital del certificado SHA-1». No hace falta recompilar.
+3. **Descarga de nuevo `google-services.json`** y cópialo en `app/`. El nuevo incluye el «ID de cliente web» que necesita el botón **Continuar con Google**; sin él, el botón no aparece.
+
+Si al pulsar el botón sale «El inicio de sesión con Google no está disponible en esta versión», falta la huella SHA-1 del certificado con el que está firmada esa copia de la app.
+
 ## 4. Crear la base de datos
 
 1. Menú **Build → Firestore Database → Crear base de datos**.

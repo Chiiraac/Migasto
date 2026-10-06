@@ -18,6 +18,7 @@ import com.chiiraac.migasto.data.prefs.UserPreferences
 import com.chiiraac.migasto.data.repository.AuthRepository
 import com.chiiraac.migasto.data.repository.AuthState
 import com.chiiraac.migasto.data.repository.FinanceRepository
+import com.chiiraac.migasto.data.repository.Reauth
 import java.io.File
 import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
@@ -56,10 +57,11 @@ class MainViewModelTest {
         override val authState: StateFlow<AuthState> = MutableStateFlow(AuthState.SignedIn(user))
         override suspend fun startLocal(name: String) = Result.success(TestData.emil)
         override suspend fun signIn(email: String, password: String) = Result.success(Unit)
+        override suspend fun signInWithGoogle(idToken: String) = Result.success(Unit)
         override suspend fun register(name: String, email: String, password: String) = Result.success(Unit)
         override suspend fun sendPasswordReset(email: String) = Result.success(Unit)
         override suspend fun updateName(name: String) = Result.success(TestData.emil)
-        override suspend fun reauthenticate(password: String) = Result.success(Unit)
+        override suspend fun reauthenticate(proof: Reauth) = Result.success(Unit)
         override suspend fun signOut() = Unit
         override suspend fun deleteAccount() = Result.success(Unit)
     }

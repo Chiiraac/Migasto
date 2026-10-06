@@ -233,6 +233,7 @@ class ScreenshotTest {
             state = AuthUiState(email = "emil@example.com", password = "secreto"),
             onNameChange = {}, onEmailChange = {}, onPasswordChange = {},
             onToggleMode = {}, onSubmit = {}, onForgotPassword = {},
+            showGoogle = true,
         )
     }
 
@@ -242,6 +243,7 @@ class ScreenshotTest {
             state = AuthUiState(registering = true, name = "Emil"),
             onNameChange = {}, onEmailChange = {}, onPasswordChange = {},
             onToggleMode = {}, onSubmit = {}, onForgotPassword = {},
+            showGoogle = true,
         )
     }
 

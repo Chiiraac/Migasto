@@ -1,6 +1,7 @@
 package com.chiiraac.migasto.ui.auth
 
 import android.app.Application
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,9 +35,11 @@ import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -46,12 +50,15 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalUriHandler
@@ -68,8 +75,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chiiraac.migasto.R
-import com.chiiraac.migasto.ui.theme.AppTheme
+import com.chiiraac.migasto.data.AppError
 import com.chiiraac.migasto.ui.theme.Palette
+import kotlinx.coroutines.launch
 
 /** Logotipo de la app (mismo dibujo que el icono del lanzador). */
 @Composable
@@ -128,6 +136,8 @@ fun AuthRoute() {
     val application = LocalContext.current.applicationContext as Application
     val viewModel: AuthViewModel = viewModel(factory = AuthViewModel.factory(application))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     AuthScreen(
         state = state,
         onNameChange = viewModel::setName,
@@ -136,6 +146,20 @@ fun AuthRoute() {
         onToggleMode = viewModel::toggleMode,
         onSubmit = viewModel::submit,
         onForgotPassword = viewModel::sendPasswordReset,
+        showGoogle = GoogleSignIn.isConfigured,
+        onGoogle = {
+            if (viewModel.startGoogle()) {
+                scope.launch {
+                    // Si la pantalla desaparece (p. ej. al girar el móvil) se trata como cancelado.
+                    var token: Result<String> = Result.failure(AppError(AppError.Reason.CANCELLED))
+                    try {
+                        token = GoogleSignIn.requestIdToken(context)
+                    } finally {
+                        viewModel.finishGoogle(token)
+                    }
+                }
+            }
+        },
     )
 }
 
@@ -148,6 +172,8 @@ fun AuthScreen(
     onToggleMode: () -> Unit,
     onSubmit: () -> Unit,
     onForgotPassword: () -> Unit,
+    showGoogle: Boolean = false,
+    onGoogle: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     val uriHandler = LocalUriHandler.current
@@ -157,6 +183,17 @@ fun AuthScreen(
     AuthLayout {
         AuthHeader(stringResource(R.string.app_name), stringResource(R.string.auth_tagline))
         Spacer(Modifier.height(12.dp))
+        if (showGoogle) {
+            GoogleButton(
+                loading = state.googleLoading,
+                enabled = !state.loading,
+                onClick = {
+                    focusManager.clearFocus()
+                    onGoogle()
+                },
+            )
+            OrDivider(stringResource(R.string.auth_or_email))
+        }
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             SegmentedButton(
                 selected = !state.registering,
@@ -230,7 +267,7 @@ fun AuthScreen(
         state.resetSentTo?.let {
             Text(
                 stringResource(R.string.auth_reset_sent, it),
-                color = AppTheme.money.income,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -249,7 +286,7 @@ fun AuthScreen(
                 contentColor = MaterialTheme.colorScheme.onSecondary,
             ),
         ) {
-            if (state.loading) {
+            if (state.loading && !state.googleLoading) {
                 CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onSecondary)
             } else {
                 Text(
@@ -274,6 +311,56 @@ fun AuthScreen(
                 textAlign = TextAlign.Center,
             )
         }
+    }
+}
+
+/** Botón "Continuar con Google" con los colores de las pautas de marca de Google. */
+@Composable
+private fun GoogleButton(loading: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val container = if (dark) Color(0xFF131314) else Color.White
+    val content = if (dark) Color(0xFFE3E3E3) else Color(0xFF1F1F1F)
+    val stroke = if (dark) Color(0xFF8E918F) else Color(0xFF747775)
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp),
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(1.dp, stroke),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = container,
+            contentColor = content,
+            disabledContainerColor = container,
+            disabledContentColor = content.copy(alpha = 0.38f),
+        ),
+    ) {
+        if (loading) {
+            CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = content)
+        } else {
+            Image(
+                painter = painterResource(R.drawable.ic_google_logo),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(stringResource(R.string.auth_continue_google), style = MaterialTheme.typography.titleMedium, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun OrDivider(text: String) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+        HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 

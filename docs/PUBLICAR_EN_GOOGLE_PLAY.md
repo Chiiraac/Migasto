@@ -75,6 +75,7 @@ Tipos de datos (todos: **recogidos**, **no compartidos**, tratados de forma **no
 |---|---|---|
 | Información personal → **Nombre** | Obligatorio | Funcionalidad de la app, Gestión de la cuenta |
 | Información personal → **Dirección de correo electrónico** | Obligatorio | Funcionalidad de la app, Gestión de la cuenta |
+| Información personal → **IDs de usuario** (identificador de la cuenta en Firebase) | Obligatorio | Funcionalidad de la app, Gestión de la cuenta |
 | Información financiera → **Otra información financiera** (movimientos que introduce el usuario) | Obligatorio | Funcionalidad de la app |
 | Fotos y vídeos → **Fotos** (tickets) | Opcional | Funcionalidad de la app |
 
@@ -151,6 +152,7 @@ MiGasto es la forma más sencilla de llevar las cuentas de casa, solo o en compa
    - Sube `app-release.aab`.
    - Notas de la versión: `Primera versión de MiGasto.`
    - Guardar → Revisar versión → **Iniciar lanzamiento**.
+   - **Inicio de sesión con Google:** en cuanto subas el primer AAB, copia la huella **SHA-1** de *Prueba y lanzamiento → Configuración → Integridad de la app → Firma de apps* y añádela en Firebase (⚙️ Configuración del proyecto → Tus apps → MiGasto → Agregar huella digital). Google vuelve a firmar la app con su propia clave, así que sin este paso el botón «Continuar con Google» fallaría en la versión de Play. No hace falta recompilar.
 4. Tras **14 días** con los 12 testers activos: **Panel → Solicitar acceso a producción**, responde el breve cuestionario y, cuando lo aprueben, **Producción → Crear versión** con el mismo AAB (o uno nuevo) → **Enviar a revisión**.
 5. La primera revisión suele tardar de unas horas a 7 días.
 

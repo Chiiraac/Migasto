@@ -57,6 +57,8 @@ data class UserProfile(
     val uid: String,
     val name: String,
     val email: String?,
+    /** La cuenta entra con Google (modo nube): para confirmar su identidad se elige la cuenta de Google. */
+    val usesGoogle: Boolean = false,
 )
 
 data class Member(

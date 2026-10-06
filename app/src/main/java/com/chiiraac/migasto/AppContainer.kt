@@ -9,6 +9,7 @@ import com.chiiraac.migasto.data.local.LocalPhotoStore
 import com.chiiraac.migasto.data.prefs.UserPreferences
 import com.chiiraac.migasto.data.remote.FirebaseAuthRepository
 import com.chiiraac.migasto.data.remote.FirestoreFinanceRepository
+import com.chiiraac.migasto.data.remote.PendingNames
 import com.chiiraac.migasto.data.repository.AuthRepository
 import com.chiiraac.migasto.data.repository.FinanceRepository
 import com.google.firebase.FirebaseApp
@@ -46,7 +47,10 @@ class AppContainer(context: Context) {
 
     val authRepository: AuthRepository by lazy {
         if (isCloud) {
-            FirebaseAuthRepository(FirebaseAuth.getInstance())
+            FirebaseAuthRepository(
+                auth = FirebaseAuth.getInstance(),
+                pendingNames = PendingNames.Stored(appContext.getSharedPreferences("auth", Context.MODE_PRIVATE)),
+            )
         } else {
             LocalAuthRepository(preferences, applicationScope)
         }

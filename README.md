@@ -30,7 +30,7 @@
 
 | | Modo local (por defecto) | Modo nube (Firebase) |
 |---|---|---|
-| Cuenta | No hace falta: solo tu nombre | Email y contraseña |
+| Cuenta | No hace falta: solo tu nombre | Email y contraseña o **Continuar con Google** |
 | Dónde se guardan los datos | Solo en el móvil | Cloud Firestore (sincronizado) |
 | Compartir grupos | No | Sí, con código de invitación |
 | Coste | Gratis | Gratis (plan Spark de Firebase) |
@@ -71,7 +71,7 @@ En GitHub Actions se usan los secretos `MIGASTO_KEYSTORE_BASE64`, `MIGASTO_KEYST
 ## Tecnología
 
 - Kotlin 2.4, Jetpack Compose + Material 3, arquitectura MVVM con `StateFlow`.
-- Room (modo local), Firebase Authentication + Cloud Firestore con caché sin conexión (modo nube). Las fotos se comprimen (< 700 KB) y se guardan en Firestore para no necesitar el plan de pago.
+- Room (modo local), Firebase Authentication (email o Google con Credential Manager) + Cloud Firestore con caché sin conexión (modo nube). Las fotos se comprimen (< 700 KB) y se guardan en Firestore para no necesitar el plan de pago.
 - DataStore, Coil, SplashScreen, `FileProvider` para cámara y CSV, selector de fotos del sistema (sin permisos de almacenamiento ni de cámara).
 - minSdk 26 (Android 8), targetSdk 36 (Android 16), compileSdk 37, AGP 9.4, R8.
 

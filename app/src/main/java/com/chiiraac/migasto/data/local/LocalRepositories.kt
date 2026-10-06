@@ -15,6 +15,7 @@ import com.chiiraac.migasto.data.prefs.UserPreferences
 import com.chiiraac.migasto.data.repository.AuthRepository
 import com.chiiraac.migasto.data.repository.AuthState
 import com.chiiraac.migasto.data.repository.FinanceRepository
+import com.chiiraac.migasto.data.repository.Reauth
 import com.chiiraac.migasto.data.runCatchingApp
 import java.time.LocalDate
 import java.util.UUID
@@ -50,13 +51,15 @@ class LocalAuthRepository(
 
     override suspend fun signIn(email: String, password: String): Result<Unit> = notAvailable()
 
+    override suspend fun signInWithGoogle(idToken: String): Result<Unit> = notAvailable()
+
     override suspend fun register(name: String, email: String, password: String): Result<Unit> = notAvailable()
 
     override suspend fun sendPasswordReset(email: String): Result<Unit> = notAvailable()
 
     override suspend fun updateName(name: String): Result<UserProfile> = startLocal(name)
 
-    override suspend fun reauthenticate(password: String): Result<Unit> = Result.success(Unit)
+    override suspend fun reauthenticate(proof: Reauth): Result<Unit> = Result.success(Unit)
 
     override suspend fun signOut() = Unit
 

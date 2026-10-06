@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.chiiraac.migasto.MiGastoApplication
 import com.chiiraac.migasto.R
+import com.chiiraac.migasto.data.AppError
 import com.chiiraac.migasto.data.model.GroupIcon
 import com.chiiraac.migasto.data.model.UserProfile
 import com.chiiraac.migasto.data.repository.AuthRepository
@@ -30,6 +31,8 @@ data class AuthUiState(
     val password: String = "",
     val groupName: String = "",
     val loading: Boolean = false,
+    /** La carga en curso es la de "Continuar con Google" (el indicador va en ese botón). */
+    val googleLoading: Boolean = false,
     @StringRes val error: Int? = null,
     val resetSentTo: String? = null,
 ) {
@@ -83,6 +86,33 @@ class AuthViewModel(
                 state.value = AuthUiState(groupName = defaultGroupName)
             } else {
                 state.update { it.copy(loading = false, error = result.exceptionOrNull()?.messageRes()) }
+            }
+        }
+    }
+
+    /**
+     * Empieza "Continuar con Google". El selector de cuentas lo abre la pantalla (necesita la
+     * Activity) y su resultado llega a [finishGoogle]. Devuelve false si ya hay algo en marcha.
+     */
+    fun startGoogle(): Boolean {
+        if (state.value.loading) return false
+        state.update { it.copy(loading = true, googleLoading = true, error = null, resetSentTo = null) }
+        return true
+    }
+
+    /** Recibe el token de Google (o el motivo por el que no se obtuvo) y abre la sesión. */
+    fun finishGoogle(token: Result<String>) {
+        val idToken = token.getOrElse { error ->
+            val cancelled = (error as? AppError)?.reason == AppError.Reason.CANCELLED
+            state.update { it.copy(loading = false, googleLoading = false, error = if (cancelled) null else error.messageRes()) }
+            return
+        }
+        viewModelScope.launch {
+            val result = auth.signInWithGoogle(idToken)
+            if (result.isSuccess || auth.authState.value is AuthState.SignedIn) {
+                state.value = AuthUiState(groupName = defaultGroupName)
+            } else {
+                state.update { it.copy(loading = false, googleLoading = false, error = result.exceptionOrNull()?.messageRes()) }
             }
         }
     }

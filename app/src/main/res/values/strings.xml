@@ -144,12 +144,17 @@
     <string name="settings_privacy_link">Ver política de privacidad completa</string>
     <string name="sign_out">Cerrar sesión</string>
     <string name="sign_out_title">¿Cerrar sesión?</string>
-    <string name="sign_out_body">Podrás volver a entrar con tu email y contraseña.</string>
+    <string name="sign_out_body">Podrás volver a entrar cuando quieras con tu cuenta.</string>
+    <string name="sign_out_syncing">Enviando los últimos cambios…</string>
+    <string name="sign_out_pending_title">Hay cambios sin sincronizar</string>
+    <string name="sign_out_pending_body">Algunos cambios aún no han llegado a la nube (puede que no haya conexión). Si cierras sesión ahora, solo se enviarán cuando vuelvas a entrar con esta cuenta en este móvil.</string>
+    <string name="sign_out_anyway">Cerrar sesión igualmente</string>
     <string name="delete_account">Eliminar mi cuenta permanentemente</string>
     <string name="delete_local_data">Borrar todos los datos</string>
     <string name="delete_account_title">¿Eliminar tu cuenta?</string>
     <string name="delete_account_body">Se eliminará tu cuenta y saldrás de todos tus grupos. Los grupos en los que seas el único miembro se borrarán con todos sus movimientos. Esta acción no se puede deshacer.</string>
     <string name="delete_account_password">Contraseña para confirmar</string>
+    <string name="delete_account_google_hint">Para confirmar, elige tu cuenta de Google en el siguiente paso.</string>
     <string name="delete_local_title">¿Borrar todos los datos?</string>
     <string name="delete_local_body">Se borrarán todos tus grupos, movimientos y fotos de este dispositivo. Esta acción no se puede deshacer.</string>
 
@@ -223,11 +228,13 @@
     <string name="auth_password">Contraseña</string>
     <string name="auth_password_hint">Mínimo 6 caracteres</string>
     <string name="auth_forgot">¿Has olvidado tu contraseña?</string>
-    <string name="auth_reset_sent">Te hemos enviado un email a %1$s para restablecer tu contraseña.</string>
+    <string name="auth_reset_sent">Si %1$s tiene una cuenta, recibirás un email para restablecer la contraseña. Comprueba que está bien escrito y mira también en la carpeta de spam.</string>
     <string name="auth_reset_need_email">Escribe tu email y vuelve a pulsar para recibir el enlace.</string>
     <string name="auth_show_password">Mostrar contraseña</string>
     <string name="auth_hide_password">Ocultar contraseña</string>
     <string name="auth_privacy_notice">Al continuar aceptas la política de privacidad.</string>
+    <string name="auth_continue_google">Continuar con Google</string>
+    <string name="auth_or_email">o con tu email</string>
 
     <!-- Bienvenida (modo local) -->
     <string name="welcome_title">Bienvenido a MiGasto</string>
@@ -260,9 +267,18 @@
     <string name="error_email_in_use">Ya existe una cuenta con ese email.</string>
     <string name="error_weak_password">La contraseña debe tener al menos 6 caracteres.</string>
     <string name="error_too_many">Demasiados intentos. Espera un momento.</string>
+    <string name="error_auth_not_configured">El acceso con email no está disponible ahora mismo. Inténtalo más tarde.</string>
+    <string name="error_account_disabled">Esta cuenta está desactivada.</string>
     <string name="error_photo_too_large">La foto es demasiado grande.</string>
     <string name="error_photo_load">No se pudo cargar la foto.</string>
     <string name="error_unknown">Ha ocurrido un error. Inténtalo de nuevo.</string>
+    <string name="error_cancelled">Operación cancelada.</string>
+    <string name="error_google_failed">No se pudo iniciar sesión con Google. Inténtalo de nuevo.</string>
+    <string name="error_google_no_account">No hay ninguna cuenta de Google en este móvil. Añade una en los ajustes del sistema o entra con tu email.</string>
+    <string name="error_google_unavailable">Este móvil no permite iniciar sesión con Google. Entra con tu email y contraseña.</string>
+    <string name="error_google_not_configured">El inicio de sesión con Google no está disponible en esta versión de la app. Entra con tu email y contraseña.</string>
+    <string name="error_google_mismatch">Elige la misma cuenta de Google con la que has iniciado sesión.</string>
+    <string name="error_account_exists_password">Ya tienes una cuenta con ese email. Entra con tu email y contraseña.</string>
     <string name="error_amount_invalid">Introduce una cantidad válida.</string>
     <string name="error_camera_unavailable">No se ha encontrado ninguna app de cámara.</string>
 

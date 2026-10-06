@@ -108,7 +108,16 @@ fun Throwable.messageRes(): Int {
         AppError.Reason.EMAIL_IN_USE -> R.string.error_email_in_use
         AppError.Reason.WEAK_PASSWORD -> R.string.error_weak_password
         AppError.Reason.TOO_MANY_REQUESTS -> R.string.error_too_many
+        AppError.Reason.AUTH_NOT_CONFIGURED -> R.string.error_auth_not_configured
+        AppError.Reason.ACCOUNT_DISABLED -> R.string.error_account_disabled
         AppError.Reason.PHOTO_TOO_LARGE -> R.string.error_photo_too_large
+        AppError.Reason.CANCELLED -> R.string.error_cancelled
+        AppError.Reason.GOOGLE_FAILED -> R.string.error_google_failed
+        AppError.Reason.GOOGLE_NO_ACCOUNT -> R.string.error_google_no_account
+        AppError.Reason.GOOGLE_UNAVAILABLE -> R.string.error_google_unavailable
+        AppError.Reason.GOOGLE_NOT_CONFIGURED -> R.string.error_google_not_configured
+        AppError.Reason.GOOGLE_ACCOUNT_MISMATCH -> R.string.error_google_mismatch
+        AppError.Reason.ACCOUNT_EXISTS_WITH_PASSWORD -> R.string.error_account_exists_password
         AppError.Reason.UNKNOWN -> R.string.error_unknown
     }
 }

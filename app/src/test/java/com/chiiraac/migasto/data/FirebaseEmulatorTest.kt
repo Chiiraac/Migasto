@@ -12,6 +12,7 @@ import com.chiiraac.migasto.data.model.UserProfile
 import com.chiiraac.migasto.data.remote.FirebaseAuthRepository
 import com.chiiraac.migasto.data.remote.FirestoreFinanceRepository
 import com.chiiraac.migasto.data.repository.AuthState
+import com.chiiraac.migasto.data.repository.Reauth
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.auth.FirebaseAuth
@@ -135,7 +136,7 @@ class FirebaseEmulatorTest {
             val onlyEmil = repoA.observeGroups(emil).first { it.single().members.size == 1 }.single()
             assertEquals(emil.uid, onlyEmil.ownerId)
 
-            authA.reauthenticate("secreto123").getOrThrow()
+            authA.reauthenticate(Reauth.Password("secreto123")).getOrThrow()
             repoA.purgeUser(emil).getOrThrow()
             authA.deleteAccount().getOrThrow()
             assertEquals(AuthState.SignedOut, authA.authState.first { it == AuthState.SignedOut })
@@ -143,6 +144,84 @@ class FirebaseEmulatorTest {
             // El código ya no existe
             val gone = repoB.joinGroup(laura, group.inviteCode).exceptionOrNull() as AppError
             assertEquals(AppError.Reason.INVALID_INVITE_CODE, gone.reason)
+        }
+    }
+
+    @Test
+    fun leavingWithStaleGroupKeepsItForNewMembers() = runBlocking {
+        assumeTrue("Emuladores de Firebase no arrancados", isOpen(8080) && isOpen(9099))
+        withTimeout(60_000) {
+            val suffix = System.currentTimeMillis()
+            val appA = app("ana")
+            val appB = app("bea")
+            val authA = FirebaseAuthRepository(FirebaseAuth.getInstance(appA))
+            val authB = FirebaseAuthRepository(FirebaseAuth.getInstance(appB))
+            val repoA = FirestoreFinanceRepository(FirebaseFirestore.getInstance(appA))
+            val repoB = FirestoreFinanceRepository(FirebaseFirestore.getInstance(appB))
+            authA.register("Ana", "ana$suffix@example.com", "secreto123").getOrThrow()
+            val ana = authA.signedInUser()
+            authB.register("Bea", "bea$suffix@example.com", "secreto456").getOrThrow()
+            val bea = authB.signedInUser()
+
+            // Ana crea el grupo y Bea se une, pero Ana aún tiene la copia antigua (solo ella)
+            val stale = repoA.createGroup(ana, "Viaje", GroupIcon.HOME).getOrThrow()
+            repoB.joinGroup(bea, stale.inviteCode).getOrThrow()
+            assertEquals(1, stale.members.size)
+
+            // Ana sale con esa copia: el servidor sabe que queda Bea, así que el grupo no se borra
+            repoA.leaveGroup(ana, stale).getOrThrow()
+            val kept = repoB.observeGroups(bea).first { list -> list.any { it.members.size == 1 } }.single()
+            assertEquals(stale.id, kept.id)
+            assertEquals(bea.uid, kept.ownerId)
+            assertTrue(repoA.flushPendingWrites(5_000))
+
+            repoB.purgeUser(bea).getOrThrow()
+            authA.deleteAccount().getOrThrow()
+            authB.deleteAccount().getOrThrow()
+        }
+    }
+
+    /** El emulador de Auth acepta tokens de Google "falsos" (JSON sin firmar) para probar el flujo. */
+    private fun fakeGoogleToken(sub: String, email: String, name: String) =
+        """{"sub":"$sub","email":"$email","email_verified":true,"name":"$name"}"""
+
+    @Test
+    fun googleAccountFlow() = runBlocking {
+        assumeTrue("Emuladores de Firebase no arrancados", isOpen(8080) && isOpen(9099))
+        withTimeout(60_000) {
+            val suffix = System.currentTimeMillis()
+            val appG = app("google")
+            val auth = FirebaseAuthRepository(FirebaseAuth.getInstance(appG))
+            val repo = FirestoreFinanceRepository(FirebaseFirestore.getInstance(appG))
+            val token = fakeGoogleToken("g$suffix", "marta$suffix@gmail.com", "Marta Google")
+
+            // Entrar con Google crea la cuenta con el nombre de Google
+            auth.signInWithGoogle(token).getOrThrow()
+            val marta = auth.signedInUser()
+            assertEquals("Marta Google", marta.name)
+            assertEquals("marta$suffix@gmail.com", marta.email)
+            assertTrue(marta.usesGoogle)
+
+            // Puede crear un grupo como cualquier otra cuenta
+            val group = repo.createGroup(marta, "Piso", GroupIcon.HOME).getOrThrow()
+            assertEquals(listOf(group.id), repo.observeGroups(marta).first { it.isNotEmpty() }.map { it.id })
+
+            // Cerrar sesión y volver a entrar con Google recupera la misma cuenta
+            auth.signOut()
+            auth.authState.first { it == AuthState.SignedOut }
+            auth.signInWithGoogle(token).getOrThrow()
+            assertEquals(marta.uid, auth.signedInUser().uid)
+
+            // Confirmar la identidad con otra cuenta de Google no vale
+            val other = fakeGoogleToken("x$suffix", "otra$suffix@gmail.com", "Otra")
+            val mismatch = auth.reauthenticate(Reauth.Google(other)).exceptionOrNull() as AppError
+            assertEquals(AppError.Reason.GOOGLE_ACCOUNT_MISMATCH, mismatch.reason)
+
+            // Borrar la cuenta confirmando con Google
+            auth.reauthenticate(Reauth.Google(token)).getOrThrow()
+            repo.purgeUser(marta).getOrThrow()
+            auth.deleteAccount().getOrThrow()
+            assertEquals(AuthState.SignedOut, auth.authState.first { it == AuthState.SignedOut })
         }
     }
 }

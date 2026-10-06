@@ -81,6 +81,7 @@ import com.chiiraac.migasto.data.model.GroupIcon
 import com.chiiraac.migasto.data.model.Movement
 import com.chiiraac.migasto.data.model.MovementDraft
 import com.chiiraac.migasto.data.model.ThemeMode
+import com.chiiraac.migasto.data.repository.Reauth
 import com.chiiraac.migasto.ui.calendar.CalendarScreen
 import com.chiiraac.migasto.ui.components.EmptyState
 import com.chiiraac.migasto.ui.components.today
@@ -118,8 +119,9 @@ class MainActions(
     val loadPhoto: suspend (Movement) -> ByteArray? = { null },
     val setTheme: (ThemeMode) -> Unit = {},
     val updateName: (String) -> Unit = {},
-    val signOut: () -> Unit = {},
-    val deleteAccount: (String?, (Throwable?) -> Unit) -> Unit = { _, _ -> },
+    /** (forzar, avisoSiQuedanCambiosSinEnviar) */
+    val signOut: (Boolean, () -> Unit) -> Unit = { _, _ -> },
+    val deleteAccount: (Reauth?, (Throwable?) -> Unit) -> Unit = { _, _ -> },
     val exportCsv: () -> Unit = {},
 )
 

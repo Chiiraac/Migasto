@@ -59,21 +59,27 @@ jobs:
           MIGASTO_KEY_PASSWORD: ${{ secrets.MIGASTO_KEY_PASSWORD }}
         run: |
           ./gradlew :app:assembleRelease
+          # El AAB vuelve a pasar por R8 y sobrescribe mapping.txt: se guarda antes el del APK
+          # para poder descifrar sus informes de errores.
+          cp app/build/outputs/mapping/release/mapping.txt app/build/outputs/apk/release/mapping-apk.txt
           # El AAB (Google Play) se compila sin el apartado de Bizum salvo que MIGASTO_BIZUM_EN_PLAY=true
           ./gradlew :app:bundleRelease -Pmigasto.bizum=${{ vars.MIGASTO_BIZUM_EN_PLAY || 'false' }}
-
 
       - name: Publicar APK
         uses: actions/upload-artifact@v4
         with:
           name: MiGasto-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/release/mapping-apk.txt
 
       - name: Publicar AAB (Google Play)
         uses: actions/upload-artifact@v4
         with:
           name: MiGasto-aab
-          path: app/build/outputs/bundle/release/*.aab
+          path: |
+            app/build/outputs/bundle/release/*.aab
+            app/build/outputs/mapping/release/mapping.txt
 
       - name: Capturas de pantalla
         if: always()

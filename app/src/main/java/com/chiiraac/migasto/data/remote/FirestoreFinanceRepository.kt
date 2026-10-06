@@ -112,13 +112,14 @@ class FirestoreFinanceRepository(
         val groupRef = groups.document(groupId)
 
         try {
+            // Con un límite de tiempo: sin conexión Firestore nunca falla la escritura, la deja en cola.
             groupRef.update(
                 mapOf(
                     F_MEMBER_IDS to FieldValue.arrayUnion(user.uid),
                     "$F_MEMBERS.${user.uid}" to memberData(user),
                     F_JOIN_CODE to code,
                 ),
-            ).await()
+            ).awaitWrite(confirmed = true)
         } catch (e: Exception) {
             val mapped = FirebaseErrors.map(e)
             if (mapped is AppError && mapped.reason == AppError.Reason.PERMISSION_DENIED) {
@@ -138,19 +139,34 @@ class FirestoreFinanceRepository(
      * Sale de [group]; si era el último miembro, lo borra entero. Con [confirmed] cada escritura
      * espera la confirmación del servidor (se usa al borrar la cuenta, cuando ya no habrá sesión
      * para enviar después lo que quede pendiente).
+     *
+     * Quién queda en el grupo se decide con el estado del servidor dentro de una transacción, no
+     * con la copia local (que puede ir con retraso): si alguien acaba de unirse, el grupo no se borra.
      */
     private suspend fun leave(user: UserProfile, group: Group, confirmed: Boolean) {
-        val remaining = group.members.filter { it.uid != user.uid }
-        if (remaining.isEmpty()) {
-            deleteGroupCompletely(group, confirmed)
-        } else {
-            val updates = mutableMapOf<String, Any>(
-                F_MEMBER_IDS to FieldValue.arrayRemove(user.uid),
-                "$F_MEMBERS.${user.uid}" to FieldValue.delete(),
-            )
-            if (group.ownerId == user.uid) updates[F_OWNER_ID] = remaining.first().uid
-            groups.document(group.id).update(updates).awaitWrite(confirmed)
-        }
+        val ref = groups.document(group.id)
+        val lastMember = db.runTransaction { tx ->
+            val snapshot = tx.get(ref)
+            val ids = snapshot.memberIds()
+            when {
+                !snapshot.exists() || user.uid !in ids -> false
+                ids.size == 1 -> true
+                else -> {
+                    tx.update(ref, removeMemberUpdates(user.uid, snapshot, ids))
+                    false
+                }
+            }
+        }.awaitServer()
+        if (lastMember) deleteGroupCompletely(user, group, confirmed)
+    }
+
+    private fun removeMemberUpdates(uid: String, snapshot: DocumentSnapshot, ids: List<String>): Map<String, Any> {
+        val updates = mutableMapOf<String, Any>(
+            F_MEMBER_IDS to FieldValue.arrayRemove(uid),
+            "$F_MEMBERS.$uid" to FieldValue.delete(),
+        )
+        if (snapshot.getString(F_OWNER_ID) == uid) updates[F_OWNER_ID] = ids.first { it != uid }
+        return updates
     }
 
     override suspend fun updateGroup(group: Group, name: String, icon: GroupIcon): Result<Unit> =
@@ -235,8 +251,15 @@ class FirestoreFinanceRepository(
         db.waitForPendingWrites().awaitWrite(confirmed = true)
     }
 
+    override suspend fun flushPendingWrites(timeoutMs: Long): Boolean =
+        withTimeoutOrNull(timeoutMs) {
+            // Si alguna escritura pendiente se rechaza, ya no queda nada por enviar.
+            runCatching { db.waitForPendingWrites().await() }
+            true
+        } ?: false
+
     /** Borra movimientos, fotos, código de invitación y el propio grupo. */
-    private suspend fun deleteGroupCompletely(group: Group, confirmed: Boolean) {
+    private suspend fun deleteGroupCompletely(user: UserProfile, group: Group, confirmed: Boolean) {
         // Lectura del servidor (no de la caché) para no dejar documentos huérfanos. Las fotos
         // usan el mismo id que su movimiento, así que no hace falta descargarlas para borrarlas.
         val movementDocs = movementsOf(group.id).get(Source.SERVER).await().documents
@@ -250,11 +273,26 @@ class FirestoreFinanceRepository(
             chunk.forEach { batch.delete(it) }
             batch.commit().awaitWrite(confirmed)
         }
-        val batch = db.batch()
-        if (group.inviteCode.isNotBlank()) batch.delete(inviteCodes.document(group.inviteCode))
-        batch.delete(groups.document(group.id))
-        batch.commit().awaitWrite(confirmed)
+        // Último paso, otra vez contra el servidor: si mientras tanto alguien se ha unido,
+        // el grupo se conserva para esa persona y solo se sale de él.
+        val ref = groups.document(group.id)
+        db.runTransaction { tx ->
+            val snapshot = tx.get(ref)
+            val ids = snapshot.memberIds()
+            if (snapshot.exists() && user.uid in ids) {
+                if (ids.size == 1) {
+                    snapshot.getString(F_INVITE_CODE)?.takeIf { it.isNotBlank() }
+                        ?.let { tx.delete(inviteCodes.document(it)) }
+                    tx.delete(ref)
+                } else {
+                    tx.update(ref, removeMemberUpdates(user.uid, snapshot, ids))
+                }
+            }
+        }.awaitServer()
     }
+
+    private fun DocumentSnapshot.memberIds(): List<String> =
+        (get(F_MEMBER_IDS) as? List<*>).orEmpty().filterIsInstance<String>()
 
     private fun memberData(user: UserProfile): Map<String, Any?> =
         mapOf(F_NAME to user.name, F_EMAIL to user.email)
@@ -297,10 +335,6 @@ class FirestoreFinanceRepository(
         const val F_HAS_PHOTO = "hasPhoto"
         const val F_DATA = "data"
 
-        /**
-         * Espera la confirmación del servidor un tiempo prudencial. Sin conexión, Firestore
-         * guarda la escritura en local y la sincroniza después, así que no bloqueamos la interfaz.
-         */
         /** Espera la confirmación del servidor si [confirmed]; si no, como [awaitOrQueued]. */
         private suspend fun Task<*>.awaitWrite(confirmed: Boolean) {
             if (!confirmed) return awaitOrQueued()
@@ -308,6 +342,15 @@ class FirestoreFinanceRepository(
                 ?: throw AppError(AppError.Reason.NETWORK)
         }
 
+        /** Resultado de una transacción (siempre va contra el servidor), con límite de tiempo. */
+        private suspend fun <T> Task<T>.awaitServer(): T =
+            withTimeoutOrNull(CONFIRMED_WRITE_TIMEOUT_MS) { listOf(await()) }?.single()
+                ?: throw AppError(AppError.Reason.NETWORK)
+
+        /**
+         * Espera la confirmación del servidor un tiempo prudencial. Sin conexión, Firestore
+         * guarda la escritura en local y la sincroniza después, así que no bloqueamos la interfaz.
+         */
         private suspend fun Task<*>.awaitOrQueued() {
             val finished = withTimeoutOrNull(WRITE_TIMEOUT_MS) { await(); true }
             if (finished == null) {

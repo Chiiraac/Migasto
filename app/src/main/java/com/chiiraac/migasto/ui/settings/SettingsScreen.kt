@@ -54,7 +54,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.chiiraac.migasto.BuildConfig
 import com.chiiraac.migasto.R
+import com.chiiraac.migasto.data.AppError
 import com.chiiraac.migasto.data.model.ThemeMode
+import com.chiiraac.migasto.data.repository.Reauth
+import com.chiiraac.migasto.ui.auth.GoogleSignIn
 import com.chiiraac.migasto.ui.components.SectionCard
 import com.chiiraac.migasto.ui.components.SettingsRow
 import com.chiiraac.migasto.ui.components.label
@@ -82,14 +85,17 @@ fun SettingsScreen(
     onUpdateName: (String) -> Unit,
     onThemeChange: (ThemeMode) -> Unit,
     onExportCsv: () -> Unit,
-    onSignOut: () -> Unit,
-    onDeleteAccount: (password: String?, onResult: (Throwable?) -> Unit) -> Unit,
+    onSignOut: (force: Boolean, onPendingChanges: () -> Unit) -> Unit,
+    onDeleteAccount: (proof: Reauth?, onResult: (Throwable?) -> Unit) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
 ) {
     val user = state.user
     var editingName by rememberSaveable { mutableStateOf(false) }
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
+    // `remember` (no saveable): tras rotar la pantalla el diálogo no se queda bloqueado.
+    var signingOut by remember { mutableStateOf(false) }
+    var pendingChangesWarning by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
     val privacyUrl = stringResource(R.string.privacy_policy_url)
@@ -245,23 +251,59 @@ fun SettingsScreen(
     }
     if (confirmSignOut) {
         AlertDialog(
-            onDismissRequest = { confirmSignOut = false },
+            onDismissRequest = { if (!signingOut) confirmSignOut = false },
             title = { Text(stringResource(R.string.sign_out_title)) },
-            text = { Text(stringResource(R.string.sign_out_body)) },
+            text = { Text(stringResource(if (signingOut) R.string.sign_out_syncing else R.string.sign_out_body)) },
             confirmButton = {
-                TextButton(onClick = {
-                    confirmSignOut = false
-                    onSignOut()
-                }) { Text(stringResource(R.string.sign_out)) }
+                TextButton(
+                    onClick = {
+                        signingOut = true
+                        // Si todo se ha enviado, la sesión se cierra y esta pantalla desaparece.
+                        onSignOut(false) {
+                            signingOut = false
+                            confirmSignOut = false
+                            pendingChangesWarning = true
+                        }
+                    },
+                    enabled = !signingOut,
+                ) {
+                    if (signingOut) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text(stringResource(R.string.sign_out))
+                    }
+                }
             },
             dismissButton = {
-                TextButton(onClick = { confirmSignOut = false }) { Text(stringResource(R.string.action_cancel)) }
+                TextButton(onClick = { confirmSignOut = false }, enabled = !signingOut) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
+    if (pendingChangesWarning) {
+        AlertDialog(
+            onDismissRequest = { pendingChangesWarning = false },
+            title = { Text(stringResource(R.string.sign_out_pending_title)) },
+            text = { Text(stringResource(R.string.sign_out_pending_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingChangesWarning = false
+                        onSignOut(true) {}
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text(stringResource(R.string.sign_out_anyway)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingChangesWarning = false }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
     if (confirmDelete) {
         DeleteAccountDialog(
             isCloud = state.isCloud,
+            usesGoogle = user?.usesGoogle == true,
             onDismiss = { confirmDelete = false },
             onConfirm = onDeleteAccount,
         )
@@ -301,20 +343,42 @@ private fun NameDialog(initial: String, onDismiss: () -> Unit, onConfirm: (Strin
 @Composable
 private fun DeleteAccountDialog(
     isCloud: Boolean,
+    usesGoogle: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (password: String?, onResult: (Throwable?) -> Unit) -> Unit,
+    onConfirm: (proof: Reauth?, onResult: (Throwable?) -> Unit) -> Unit,
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    // Las cuentas de Google no tienen contraseña: se confirma eligiendo de nuevo la cuenta de Google.
+    val confirmWithGoogle = isCloud && usesGoogle
     var password by rememberSaveable { mutableStateOf("") }
     // `remember` (no saveable): tras rotar la pantalla el diálogo no se queda bloqueado.
     var working by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<Int?>(null) }
+    val finish: (Throwable?) -> Unit = { failure ->
+        working = false
+        if (failure != null && (failure as? AppError)?.reason != AppError.Reason.CANCELLED) {
+            error = failure.messageRes()
+        }
+    }
     AlertDialog(
         onDismissRequest = { if (!working) onDismiss() },
         title = { Text(stringResource(if (isCloud) R.string.delete_account_title else R.string.delete_local_title)) },
         text = {
             Column {
                 Text(stringResource(if (isCloud) R.string.delete_account_body else R.string.delete_local_body))
-                if (isCloud) {
+                if (confirmWithGoogle) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        stringResource(R.string.delete_account_google_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    error?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(stringResource(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                    }
+                } else if (isCloud) {
                     Spacer(Modifier.height(16.dp))
                     OutlinedTextField(
                         value = password,
@@ -338,12 +402,19 @@ private fun DeleteAccountDialog(
             TextButton(
                 onClick = {
                     working = true
-                    onConfirm(password.takeIf { isCloud }) { failure ->
-                        working = false
-                        if (failure != null) error = failure.messageRes()
+                    error = null
+                    when {
+                        confirmWithGoogle -> scope.launch {
+                            GoogleSignIn.requestIdToken(context).fold(
+                                onSuccess = { onConfirm(Reauth.Google(it), finish) },
+                                onFailure = finish,
+                            )
+                        }
+                        isCloud -> onConfirm(Reauth.Password(password), finish)
+                        else -> onConfirm(null, finish)
                     }
                 },
-                enabled = !working && (!isCloud || password.isNotEmpty()),
+                enabled = !working && (!isCloud || confirmWithGoogle || password.isNotEmpty()),
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
             ) {
                 if (working) {
