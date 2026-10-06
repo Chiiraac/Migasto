@@ -13,6 +13,7 @@ import com.chiiraac.migasto.R
 import com.chiiraac.migasto.data.model.GroupIcon
 import com.chiiraac.migasto.data.model.UserProfile
 import com.chiiraac.migasto.data.repository.AuthRepository
+import com.chiiraac.migasto.data.repository.AuthState
 import com.chiiraac.migasto.data.repository.FinanceRepository
 import com.chiiraac.migasto.ui.components.messageRes
 import java.util.UUID
@@ -44,6 +45,15 @@ class AuthViewModel(
 
     private val state = MutableStateFlow(AuthUiState(groupName = defaultGroupName))
     val uiState: StateFlow<AuthUiState> = state.asStateFlow()
+
+    init {
+        // En cuanto hay sesión (aunque el registro terminase con un error parcial, p. ej. al
+        // guardar el nombre), se vacía el formulario: al cerrar sesión no deben quedar el email
+        // ni la contraseña de la persona anterior.
+        viewModelScope.launch {
+            auth.authState.collect { if (it is AuthState.SignedIn) state.value = AuthUiState(groupName = defaultGroupName) }
+        }
+    }
 
     fun setName(value: String) = state.update { it.copy(name = value.take(40), error = null) }
     fun setEmail(value: String) = state.update { it.copy(email = value.trim().take(120), error = null, resetSentTo = null) }

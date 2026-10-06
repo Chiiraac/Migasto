@@ -57,7 +57,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,6 +96,7 @@ import com.chiiraac.migasto.ui.settings.SettingsScreen
 import com.chiiraac.migasto.ui.stats.StatsScreen
 import com.chiiraac.migasto.ui.theme.AppTheme
 import java.time.LocalDate
+import kotlin.random.Random
 import kotlinx.coroutines.launch
 
 enum class MainTab(val label: Int, val icon: ImageVector) {
@@ -113,7 +113,7 @@ class MainActions(
     val joinGroup: (String, (Throwable?) -> Unit) -> Unit = { _, _ -> },
     val leaveGroup: (Group) -> Unit = {},
     val updateGroup: (Group, String, GroupIcon) -> Unit = { _, _, _ -> },
-    val saveMovement: (Int, String?, MovementDraft, Uri?, Boolean, (Boolean) -> Unit) -> Unit = { _, _, _, _, _, _ -> },
+    val saveMovement: (Long, String?, MovementDraft, Uri?, Boolean, (Boolean) -> Unit) -> Unit = { _, _, _, _, _, _ -> },
     val deleteMovement: (Movement) -> Unit = {},
     val loadPhoto: suspend (Movement) -> ByteArray? = { null },
     val setTheme: (ThemeMode) -> Unit = {},
@@ -188,7 +188,8 @@ fun MainScreen(
     var leaveGroupId by rememberSaveable { mutableStateOf<String?>(null) }
     var editorOpen by rememberSaveable { mutableStateOf(false) }
     // Identifica cada apertura del editor: un guardado lento no debe cerrar otro editor nuevo.
-    var editorToken by rememberSaveable { mutableIntStateOf(0) }
+    // Aleatorio para que no se repita entre sesiones (el ViewModel recuerda el último guardado).
+    var editorToken by rememberSaveable { mutableLongStateOf(0L) }
     var editorMovementId by rememberSaveable { mutableStateOf<String?>(null) }
     var editorDay by rememberSaveable { mutableLongStateOf(todayDate.toEpochDay()) }
     var detailId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -201,7 +202,7 @@ fun MainScreen(
     fun openNewMovement() {
         editorMovementId = null
         editorDay = if (tab == MainTab.CALENDAR) calendarDay else todayDate.toEpochDay()
-        editorToken++
+        editorToken = Random.nextLong()
         editorOpen = true
     }
 
@@ -405,7 +406,7 @@ fun MainScreen(
                 detailId = null
                 editorMovementId = detail.id
                 editorDay = detail.date.toEpochDay()
-                editorToken++
+                editorToken = Random.nextLong()
                 editorOpen = true
             },
             onDelete = {
@@ -423,6 +424,7 @@ fun MainScreen(
             MovementEditorSheet(
                 existing = existing,
                 initialDate = LocalDate.ofEpochDay(editorDay),
+                savingElsewhere = token in state.savingEditorTokens,
                 loadPhoto = actions.loadPhoto,
                 onSave = { draft, photo, removePhoto, onDone ->
                     actions.saveMovement(token, existing?.id, draft, photo, removePhoto, onDone)

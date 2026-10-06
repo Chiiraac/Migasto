@@ -120,6 +120,7 @@ import kotlinx.coroutines.launch
 fun MovementEditorSheet(
     existing: Movement?,
     initialDate: LocalDate,
+    savingElsewhere: Boolean = false,
     loadPhoto: suspend (Movement) -> ByteArray?,
     onSave: (draft: MovementDraft, newPhoto: Uri?, removePhoto: Boolean, onDone: (Boolean) -> Unit) -> Unit,
     onDismiss: () -> Unit,
@@ -130,7 +131,7 @@ fun MovementEditorSheet(
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
     ) {
-        MovementEditorContent(existing, initialDate, loadPhoto, onSave, onDismiss)
+        MovementEditorContent(existing, initialDate, loadPhoto, onSave, onDismiss, savingElsewhere)
     }
 }
 
@@ -142,6 +143,8 @@ fun MovementEditorContent(
     loadPhoto: suspend (Movement) -> ByteArray?,
     onSave: (draft: MovementDraft, newPhoto: Uri?, removePhoto: Boolean, onDone: (Boolean) -> Unit) -> Unit,
     onDismiss: () -> Unit,
+    /** El ViewModel sigue guardando este editor (p. ej. tras girar la pantalla). */
+    savingElsewhere: Boolean = false,
 ) {
     val context = LocalContext.current
     val todayDate = today()
@@ -158,7 +161,8 @@ fun MovementEditorContent(
     var removeExisting by rememberSaveable { mutableStateOf(false) }
     var pendingCameraUri by rememberSaveable { mutableStateOf<String?>(null) }
     // No se guarda en el Bundle: tras rotar la pantalla el formulario debe quedar utilizable.
-    var saving by remember { mutableStateOf(false) }
+    var savingHere by remember { mutableStateOf(false) }
+    val saving = savingHere || savingElsewhere
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     var showCategoryPicker by rememberSaveable { mutableStateOf(false) }
     var showPhotoMenu by remember { mutableStateOf(false) }
@@ -371,7 +375,7 @@ fun MovementEditorContent(
             onClick = {
                 val cents = amountCents ?: return@Button
                 val category = effectiveCategory ?: return@Button
-                saving = true
+                savingHere = true
                 onSave(
                     MovementDraft(
                         type = type,
@@ -384,7 +388,7 @@ fun MovementEditorContent(
                     newPhoto?.let(Uri::parse),
                     removeExisting,
                 ) { success ->
-                    saving = false
+                    savingHere = false
                     if (success) onDismiss()
                 }
             },

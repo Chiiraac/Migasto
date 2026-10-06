@@ -109,16 +109,32 @@ class MainViewModelTest {
     }
 
     @Test
+    fun aSecondSaveForTheSameEditorIsIgnoredWhileTheFirstIsRunning() = scope.runTest {
+        val finance = FlakyFinance(TestData.movements)
+        val vm = viewModel(finance)
+        advanceUntilIdle()
+        val draft = MovementDraft(MovementType.EXPENSE, PaymentMethod.CASH, 300, "Pan", "groceries", LocalDate.of(2026, 10, 6))
+        val results = mutableListOf<Boolean>()
+        vm.saveMovement(editorToken = 3L, movementId = null, draft = draft, newPhoto = null, removePhoto = false) { results += it }
+        assertTrue(3L in vm.uiState.value.savingEditorTokens || finance.saved.isEmpty())
+        vm.saveMovement(editorToken = 3L, movementId = null, draft = draft, newPhoto = null, removePhoto = false) { results += it }
+        advanceUntilIdle()
+        assertEquals(1, finance.saved.size)
+        assertEquals(listOf(false, true), results)
+    }
+
+    @Test
     fun savingReportsTheEditorTokenSoTheEditorCloses() = scope.runTest {
         val finance = FlakyFinance(TestData.movements)
         val vm = viewModel(finance)
         advanceUntilIdle()
         var done: Boolean? = null
         val draft = MovementDraft(MovementType.EXPENSE, PaymentMethod.BANK, 500, "Café", "restaurants", LocalDate.of(2026, 10, 6))
-        vm.saveMovement(editorToken = 7, movementId = null, draft = draft, newPhoto = null, removePhoto = false) { done = it }
+        vm.saveMovement(editorToken = 7L, movementId = null, draft = draft, newPhoto = null, removePhoto = false) { done = it }
         advanceUntilIdle()
         assertEquals(true, done)
-        assertEquals(7, vm.uiState.value.savedEditorToken)
+        assertEquals(7L, vm.uiState.value.savedEditorToken)
+        assertTrue(vm.uiState.value.savingEditorTokens.isEmpty())
         assertEquals(listOf(draft), finance.saved)
     }
 }

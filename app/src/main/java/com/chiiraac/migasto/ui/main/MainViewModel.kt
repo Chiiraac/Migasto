@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class MainUiState(
@@ -54,7 +55,9 @@ data class MainUiState(
     val movementsLoaded: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** Último editor (por su identificador) cuyo movimiento se guardó: la pantalla lo cierra. */
-    val savedEditorToken: Int? = null,
+    val savedEditorToken: Long? = null,
+    /** Editores cuyo guardado sigue en curso (sobrevive a la recreación de la actividad). */
+    val savingEditorTokens: Set<Long> = emptySet(),
 ) {
     /** Nombre a mostrar del autor de un movimiento (actualizado si cambió su nombre). */
     fun authorName(movement: Movement): String =
@@ -122,17 +125,22 @@ class MainViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    private val savedEditorToken = MutableStateFlow<Int?>(null)
+    private val savedEditorToken = MutableStateFlow<Long?>(null)
+    private val savingEditorTokens = MutableStateFlow<Set<Long>>(emptySet())
 
-    private val themeAndToken = combine(preferences.themeMode, savedEditorToken) { theme, token -> theme to token }
+    private data class EditorState(val theme: ThemeMode, val saved: Long?, val saving: Set<Long>)
+
+    private val themeAndEditor = combine(preferences.themeMode, savedEditorToken, savingEditorTokens) { theme, saved, saving ->
+        EditorState(theme, saved, saving)
+    }
 
     val uiState: StateFlow<MainUiState> = combine(
         user,
         groups,
         selectedGroup,
         movements,
-        themeAndToken,
-    ) { profile, groupList, selected, movementList, (theme, token) ->
+        themeAndEditor,
+    ) { profile, groupList, selected, movementList, editor ->
         MainUiState(
             user = profile,
             isCloud = isCloud,
@@ -141,8 +149,9 @@ class MainViewModel(
             selectedGroup = selected,
             movements = movementList.orEmpty(),
             movementsLoaded = movementList != null,
-            themeMode = theme,
-            savedEditorToken = token,
+            themeMode = editor.theme,
+            savedEditorToken = editor.saved,
+            savingEditorTokens = editor.saving,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, MainUiState(isCloud = isCloud))
 
@@ -209,7 +218,7 @@ class MainViewModel(
      * [removePhoto] indica que se quiere quitar la foto existente.
      */
     fun saveMovement(
-        editorToken: Int,
+        editorToken: Long,
         movementId: String?,
         draft: MovementDraft,
         newPhoto: Uri?,
@@ -218,33 +227,41 @@ class MainViewModel(
     ) {
         val profile = currentUser() ?: return onDone(false)
         val groupId = uiState.value.selectedGroup?.id ?: return onDone(false)
+        // Un mismo editor no puede guardar dos veces a la vez (p. ej. tras girar la pantalla).
+        if (editorToken in savingEditorTokens.value) return onDone(false)
+        savingEditorTokens.update { it + editorToken }
         viewModelScope.launch {
-            val photoChange: PhotoChange = when {
-                newPhoto != null -> {
-                    val bytes = runCatching { PhotoProcessor.compress(application, newPhoto) }.getOrNull()
-                    TempFiles.deleteCameraCapture(application, newPhoto)
-                    if (bytes == null) {
-                        post(R.string.error_photo_load)
-                        onDone(false)
-                        return@launch
+            try {
+                val photoChange: PhotoChange = when {
+                    newPhoto != null -> {
+                        val bytes = runCatching { PhotoProcessor.compress(application, newPhoto) }.getOrNull()
+                        if (bytes == null) {
+                            post(R.string.error_photo_load)
+                            onDone(false)
+                            return@launch
+                        }
+                        PhotoChange.Replace(bytes)
                     }
-                    PhotoChange.Replace(bytes)
+                    removePhoto -> PhotoChange.Remove
+                    else -> PhotoChange.Keep
                 }
-                removePhoto -> PhotoChange.Remove
-                else -> PhotoChange.Keep
+                finance.saveMovement(profile, groupId, movementId, draft, photoChange)
+                    .onSuccess {
+                        // La foto original de la cámara solo se borra cuando ya está guardada.
+                        newPhoto?.let { TempFiles.deleteCameraCapture(application, it) }
+                        post(if (movementId == null) R.string.movement_saved else R.string.movement_updated)
+                        // Se guarda en el estado del ViewModel para cerrar el editor aunque la
+                        // actividad se haya recreado (p. ej. al girar la pantalla) mientras se guardaba.
+                        savedEditorToken.value = editorToken
+                        onDone(true)
+                    }
+                    .onFailure {
+                        postError(it)
+                        onDone(false)
+                    }
+            } finally {
+                savingEditorTokens.update { it - editorToken }
             }
-            finance.saveMovement(profile, groupId, movementId, draft, photoChange)
-                .onSuccess {
-                    post(if (movementId == null) R.string.movement_saved else R.string.movement_updated)
-                    // Se guarda en el estado del ViewModel para cerrar el editor aunque la
-                    // actividad se haya recreado (p. ej. al girar la pantalla) mientras se guardaba.
-                    savedEditorToken.value = editorToken
-                    onDone(true)
-                }
-                .onFailure {
-                    postError(it)
-                    onDone(false)
-                }
         }
     }
 
