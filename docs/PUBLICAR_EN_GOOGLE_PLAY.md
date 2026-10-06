@@ -159,11 +159,11 @@ MiGasto es la forma más sencilla de llevar las cuentas de casa, solo o en compa
 La app incluye en *Ajustes* un apartado para invitarte a un café por Bizum. **Atención:** la política de pagos de Google Play exige usar su sistema de cobro para pagos dentro de la app y Google ha retirado apps por enlazar a donaciones externas (fuera de EE. UU. la excepción solo cubre donativos a entidades benéficas). Para no arriesgar la publicación:
 
 - **APK que instalas tú o compartes directamente:** puede llevar el apartado de Bizum sin problema.
-- **AAB para Google Play (recomendado):** compílalo sin el apartado:
+- **AAB para Google Play:** se compila **sin** el apartado (así lo has decidido):
   ```bash
   ./gradlew :app:bundleRelease -Pmigasto.bizum=false
   ```
-  En GitHub Actions basta con crear la variable del repositorio `MIGASTO_BIZUM_EN_PLAY` con valor `false` (*Settings → Secrets and variables → Actions → Variables*).
+  GitHub Actions ya genera el AAB sin Bizum. Si algún día quieres incluirlo, crea la variable del repositorio `MIGASTO_BIZUM_EN_PLAY` con valor `true` (*Settings → Secrets and variables → Actions → Variables*).
 - Si quieres donaciones dentro de la versión de Play, la forma permitida es un producto de compra integrada («Café», p. ej. 1,99 €) con Google Play Billing.
 
 ## 8. Publicar actualizaciones

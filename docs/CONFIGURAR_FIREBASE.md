@@ -7,6 +7,9 @@ Sin configuración, MiGasto funciona en **modo local**: los datos se guardan sol
 1. Entra en <https://console.firebase.google.com> con tu cuenta de Google.
 2. **Crear un proyecto** → nombre `MiGasto`. Google Analytics no hace falta (puedes desactivarlo).
 
+> Proyecto de MiGasto: **Finance Tracker** (`finance-tracker-c9c9d`). El archivo `.firebaserc` ya apunta a él.
+> La app Android antigua de ese proyecto (`com.example.financetracker`, «Mis Ahorros») **no sirve**: Google Play no admite paquetes `com.example.*`, así que hay que registrar una app nueva con el paquete de MiGasto.
+
 ## 2. Registrar la app Android
 
 1. En la página del proyecto, pulsa el icono de **Android** para añadir una app.
