@@ -34,6 +34,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -85,6 +86,7 @@ fun SettingsScreen(
     state: MainUiState,
     onUpdateName: (String) -> Unit,
     onThemeChange: (ThemeMode) -> Unit,
+    onNewsChange: (Boolean) -> Unit,
     onExportCsv: () -> Unit,
     onSignOut: (force: Boolean) -> Unit,
     onCancelSignOut: () -> Unit,
@@ -148,6 +150,30 @@ fun SettingsScreen(
                             shape = SegmentedButtonDefaults.itemShape(index, ThemeMode.entries.size),
                         ) { Text(stringResource(mode.label), maxLines = 1) }
                     }
+                }
+            }
+        }
+        if (state.isCloud) {
+            item(key = "notifications") {
+                SectionCard(title = stringResource(R.string.settings_notifications)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_news), style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                stringResource(R.string.settings_news_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Switch(checked = state.newsEnabled, onCheckedChange = onNewsChange)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.settings_group_notifications_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

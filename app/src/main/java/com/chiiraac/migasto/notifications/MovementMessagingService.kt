@@ -15,11 +15,10 @@ class MovementMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         val notification = message.notification ?: return
-        Notifications.showMovement(
-            this,
-            notification.title,
-            notification.body,
-            message.data[Notifications.EXTRA_GROUP_ID],
-        )
+        val groupId = message.data[Notifications.EXTRA_GROUP_ID]
+        // Los movimientos traen su canal; los avisos generales de la consola van a "Novedades".
+        val channel = notification.channelId
+            ?: if (groupId != null) Notifications.CHANNEL_MOVEMENTS else Notifications.CHANNEL_NEWS
+        Notifications.show(this, channel, notification.title, notification.body, groupId)
     }
 }

@@ -129,6 +129,7 @@ class MainActions(
     val deleteMovement: (Movement) -> Unit = {},
     val loadPhoto: suspend (Movement) -> ByteArray? = { null },
     val setTheme: (ThemeMode) -> Unit = {},
+    val setNewsEnabled: (Boolean) -> Unit = {},
     val updateName: (String) -> Unit = {},
     /** Cerrar sesión (true = aunque queden cambios sin enviar). */
     val signOut: (Boolean) -> Unit = {},
@@ -181,6 +182,7 @@ fun MainRoute(userId: String) {
             deleteMovement = viewModel::deleteMovement,
             loadPhoto = viewModel::loadPhoto,
             setTheme = viewModel::setThemeMode,
+            setNewsEnabled = viewModel::setNewsEnabled,
             updateName = viewModel::updateName,
             signOut = viewModel::signOut,
             cancelSignOut = viewModel::cancelSignOut,
@@ -334,6 +336,7 @@ fun MainScreen(
                         state = state,
                         onUpdateName = actions.updateName,
                         onThemeChange = actions.setTheme,
+                        onNewsChange = actions.setNewsEnabled,
                         onExportCsv = actions.exportCsv,
                         onSignOut = actions.signOut,
                         onCancelSignOut = actions.cancelSignOut,

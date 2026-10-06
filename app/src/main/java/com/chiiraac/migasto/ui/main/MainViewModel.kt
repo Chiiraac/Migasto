@@ -72,6 +72,8 @@ data class MainUiState(
     val signOutState: SignOutState = SignOutState.IDLE,
     /** Grupos con los avisos de movimientos nuevos desactivados (modo nube). */
     val mutedGroups: Set<String> = emptySet(),
+    /** Recibir los avisos generales de MiGasto (modo nube). */
+    val newsEnabled: Boolean = true,
 ) {
     /** Nombre a mostrar del autor de un movimiento (actualizado si cambió su nombre). */
     fun authorName(movement: Movement): String =
@@ -163,6 +165,7 @@ class MainViewModel(
 
     private data class EditorState(
         val theme: ThemeMode,
+        val news: Boolean,
         val saved: Set<Long>,
         val saving: Set<Long>,
         val signOut: SignOutState,
@@ -170,13 +173,13 @@ class MainViewModel(
     )
 
     private val themeAndEditor = combine(
-        preferences.themeMode,
+        combine(preferences.themeMode, preferences.newsEnabled) { theme, news -> theme to news },
         savedEditorTokens,
         savingEditorTokens,
         signOutState,
         mutedGroups,
-    ) { theme, saved, saving, signOut, muted ->
-        EditorState(theme, saved, saving, signOut, muted)
+    ) { (theme, news), saved, saving, signOut, muted ->
+        EditorState(theme, news, saved, saving, signOut, muted)
     }
 
     val uiState: StateFlow<MainUiState> = combine(
@@ -195,6 +198,7 @@ class MainViewModel(
             movements = movementList.orEmpty(),
             movementsLoaded = movementList != null,
             themeMode = editor.theme,
+            newsEnabled = editor.news,
             savedEditorTokens = editor.saved,
             savingEditorTokens = editor.saving,
             signOutState = editor.signOut,
@@ -382,6 +386,14 @@ class MainViewModel(
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { preferences.setThemeMode(mode) }
+    }
+
+    /** Recibir o no los avisos generales de MiGasto. */
+    fun setNewsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            preferences.setNewsEnabled(enabled)
+            if (isCloud) pushTokens?.setNewsSubscribed(enabled)
+        }
     }
 
     fun updateName(name: String) {

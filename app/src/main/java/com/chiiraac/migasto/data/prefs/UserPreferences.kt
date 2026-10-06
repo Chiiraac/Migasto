@@ -2,6 +2,7 @@ package com.chiiraac.migasto.data.prefs
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.chiiraac.migasto.data.model.ThemeMode
@@ -19,6 +20,15 @@ class UserPreferences(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setThemeMode(mode: ThemeMode) {
         dataStore.edit { it[THEME_MODE] = mode.name }
+    }
+
+    /** Recibir los avisos generales de MiGasto (novedades, felicitaciones…). Activado por defecto. */
+    val newsEnabled: Flow<Boolean> = dataStore.data
+        .map { it[NEWS_ENABLED] ?: true }
+        .distinctUntilChanged()
+
+    suspend fun setNewsEnabled(enabled: Boolean) {
+        dataStore.edit { it[NEWS_ENABLED] = enabled }
     }
 
     fun selectedGroupId(uid: String): Flow<String?> = dataStore.data
@@ -61,6 +71,7 @@ class UserPreferences(private val dataStore: DataStore<Preferences>) {
 
     private companion object {
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val NEWS_ENABLED = booleanPreferencesKey("news_enabled")
         val LOCAL_USER_ID = stringPreferencesKey("local_user_id")
         val LOCAL_USER_NAME = stringPreferencesKey("local_user_name")
     }

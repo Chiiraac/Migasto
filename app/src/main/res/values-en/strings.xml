@@ -174,6 +174,12 @@
     <string name="group_share_text">Join my “%1$s” group on MiGasto to keep track of our expenses together! Invite code: %2$s</string>
     <string name="group_joined">You joined “%1$s”</string>
     <string name="group_join_queued">Slow connection: you will join the group as soon as it is back, and it will appear in your list.</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_news">MiGasto news</string>
+    <string name="settings_news_desc">Occasional messages from the MiGasto team: app news, greetings…</string>
+    <string name="settings_group_notifications_hint">Notifications about new transactions are turned on or off in each group\'s settings (gear icon at the top).</string>
+    <string name="notification_channel_news">MiGasto news</string>
+    <string name="notification_channel_news_desc">Occasional messages from the MiGasto team.</string>
     <string name="group_notifications">Notify me of new transactions</string>
     <string name="group_notifications_on">You will get a notification when another member adds a transaction.</string>
     <string name="group_notifications_off">You won\'t get notifications from this group.</string>

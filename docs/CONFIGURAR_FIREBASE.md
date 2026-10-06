@@ -61,6 +61,18 @@ Cuando un miembro añade un movimiento, el resto del grupo recibe una notificaci
    ```
    El script ([`tools/desplegar-firebase.sh`](../tools/desplegar-firebase.sh)) instala lo necesario, solo pide `firebase login` si hace falta (abre el enlace, entra con tu cuenta y pega el código del final; ese código no se comparte con nadie) y publica las reglas y la función, reintentando solo si el primer despliegue falla por los permisos internos que Google prepara la primera vez.
 
+### Enviar un aviso a todos los usuarios («Felices fiestas», novedades…)
+No hace falta programar nada ni el plan Blaze: se hace desde la consola.
+
+1. Consola de Firebase → menú **Ejecutar / Engage → Messaging** → **Crear tu primera campaña** (o **Nueva campaña**) → **Mensajes de Firebase Notifications**.
+2. **Título** (p. ej. `Felices Fiestas del Pilar 🎉`) y **texto** (p. ej. `Zaragoza ❤️ Disfruta de las fiestas`). La imagen es opcional.
+3. **Segmentación** → **Tema** → escribe `novedades`. Así solo lo reciben quienes tienen activado *Ajustes → Notificaciones → Novedades de MiGasto* (viene activado por defecto).
+4. **Programación**: *Ahora* o una fecha y hora.
+5. (Opcional) **Opciones adicionales → Canal de notificaciones de Android**: `news`.
+6. **Revisar → Publicar**.
+
+Llega a los móviles que tengan instalada la versión con avisos (la anterior no estaba suscrita al tema). Úsalo con moderación: los mensajes promocionales frecuentes hacen que la gente desactive las notificaciones o desinstale la app.
+
 ## 4. Crear la base de datos
 
 1. Menú **Build → Firestore Database → Crear base de datos**.

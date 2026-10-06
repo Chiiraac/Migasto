@@ -3,6 +3,7 @@ package com.chiiraac.migasto
 import android.app.Application
 import com.chiiraac.migasto.notifications.Notifications
 import com.chiiraac.migasto.util.TempFiles
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class MiGastoApplication : Application() {
@@ -13,6 +14,12 @@ class MiGastoApplication : Application() {
         super.onCreate()
         container = AppContainer(this)
         container.applicationScope.launch { TempFiles.pruneStale(this@MiGastoApplication) }
-        if (container.isCloud) Notifications.createChannels(this)
+        if (container.isCloud) {
+            Notifications.createChannels(this)
+            // Mantiene la suscripción a las novedades según la preferencia (activada por defecto).
+            container.applicationScope.launch {
+                container.pushTokens?.setNewsSubscribed(container.preferences.newsEnabled.first())
+            }
+        }
     }
 }

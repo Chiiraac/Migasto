@@ -191,6 +191,12 @@
     <string name="group_share_text">¡Únete a mi grupo «%1$s» en MiGasto para llevar las cuentas juntos! Código de invitación: %2$s</string>
     <string name="group_joined">Te has unido a «%1$s»</string>
     <string name="group_join_queued">La conexión es lenta: te unirás al grupo en cuanto vuelva y aparecerá en tu lista.</string>
+    <string name="settings_notifications">Notificaciones</string>
+    <string name="settings_news">Novedades de MiGasto</string>
+    <string name="settings_news_desc">Mensajes ocasionales del equipo de MiGasto: novedades de la app, felicitaciones…</string>
+    <string name="settings_group_notifications_hint">Los avisos de movimientos nuevos se activan o desactivan en los ajustes de cada grupo (rueda dentada de arriba).</string>
+    <string name="notification_channel_news">Novedades de MiGasto</string>
+    <string name="notification_channel_news_desc">Mensajes ocasionales del equipo de MiGasto.</string>
     <string name="group_notifications">Avisarme de movimientos nuevos</string>
     <string name="group_notifications_on">Recibirás un aviso cuando otro miembro añada un movimiento.</string>
     <string name="group_notifications_off">No recibirás avisos de este grupo.</string>
