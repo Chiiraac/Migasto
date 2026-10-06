@@ -7,8 +7,22 @@ Sin configuración, MiGasto funciona en **modo local**: los datos se guardan sol
 1. Entra en <https://console.firebase.google.com> con tu cuenta de Google.
 2. **Crear un proyecto** → nombre `MiGasto`. Google Analytics no hace falta (puedes desactivarlo).
 
-> Proyecto de MiGasto: **Finance Tracker** (`finance-tracker-c9c9d`). El archivo `.firebaserc` ya apunta a él.
-> La app Android antigua de ese proyecto (`com.example.financetracker`, «Mis Ahorros») **no sirve**: Google Play no admite paquetes `com.example.*`, así que hay que registrar una app nueva con el paquete de MiGasto.
+> Proyecto de MiGasto: **MiGasto** (`migasto-chiiraac`). El archivo `.firebaserc` ya apunta a él.
+
+### Atajo: configurarlo todo desde Cloud Shell
+En la consola de Firebase, abre **Cloud Shell** (icono `>_` arriba a la derecha) y pega:
+```bash
+P=migasto-chiiraac
+gcloud services enable firestore.googleapis.com --project $P
+gcloud firestore databases create --location=eur3 --project $P
+git clone -b claude/android-app-apk-playstore-ol8yi9 https://github.com/Chiiraac/Migasto.git && cd Migasto
+firebase login --no-localhost
+firebase deploy --only firestore:rules --project $P
+firebase apps:create ANDROID MiGasto --package-name com.chiiraac.migasto --project $P
+firebase apps:sdkconfig ANDROID --project $P --out google-services.json
+cloudshell download google-services.json
+```
+Solo falta activar **Authentication → Correo electrónico/contraseña** desde la consola (paso 3).
 
 ## 2. Registrar la app Android
 
